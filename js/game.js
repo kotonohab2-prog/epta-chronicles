@@ -33,6 +33,11 @@ if(!Array.isArray(state.summonedCharacters)) state.summonedCharacters=[];
 // 既存セーブデータは天井導入時に一度だけ70回分を引き継ぐ
 if(!Number.isInteger(state.pityCount)) state.pityCount = saved ? 70 : 0;
 state.pityCount = Math.max(0, Math.min(79, state.pityCount));
+// SPDは暫定値。既存のセーブにも適用する
+const baseSpd={riku:110,mira:85,sena:65};
+state.characters.forEach(c=>{if(!Number.isFinite(c.spd)) c.spd=baseSpd[c.id]||75; if(!Number.isFinite(c.maxMp)) c.maxMp=30; if(!Number.isFinite(c.mp)) c.mp=c.maxMp;});
+if(!Number.isFinite(state.enemy.spd)) state.enemy.spd=90;
+if(!state.battleFlow || !Array.isArray(state.battleFlow.queue)) state.battleFlow={queue:[],index:0,round:0,finished:false};
 const protagonistPool=[
   {id:"kaisei",name:"松永海聖",role:"剣士",rarity:5,portrait:"kaisei-portrait.webp"},
   {id:"sho",name:"石原翔",role:"ライダー",rarity:5,portrait:"sho-portrait.webp"},
@@ -195,10 +200,97 @@ function shop(){
     </article>
   </div>`;
 }
-function render(){const s=$("#screen");s.innerHTML=({home,battle,party,gacha,shop,records,settings}[state.view]||home)();$("#gems").textContent=fmt(state.gems);$("#coins").textContent=fmt(state.coins);save()}
-function win(){if(state.battleWon)return;state.battleWon=true;state.achievements.firstBattle=true;state.coins+=500;state.titles.push("森の初勝利");addLog("魔物を倒した！ コインを500枚獲得。");toast("実績達成：初めての勝利")}
-function enemyTurn(){if(state.enemy.hp<=0)return;const living=state.party.map(char).filter(c=>c&&c.hp>0);if(!living.length){addLog("仲間は全員倒れてしまった……");return}const target=living[Math.floor(Math.random()*living.length)];target.hp=Math.max(0,target.hp-state.enemy.atk);addLog(`${state.enemy.name}の攻撃！ ${target.name}に${state.enemy.atk}ダメージ。`)}
-function doAttack(skill=false){if(state.enemy.hp<=0){toast("魔物はすでに倒れているで");return}let damage=0;state.party.map(char).filter(c=>c&&c.hp>0).forEach(c=>{let d=skill?Math.round(c.atk*1.55):c.atk;damage+=d});state.enemy.hp=Math.max(0,state.enemy.hp-damage);addLog(`${skill?"魔法攻撃":"全員の攻撃"}！ ${damage}ダメージを与えた。`);if(state.enemy.hp<=0){win()}else{enemyTurn()}state.turn++;render()}
+function render(){if(state.view==="battle")ensureBattleReady();const s=$("#screen");s.innerHTML=({home,battle,party,gacha,shop,records,settings}[state.view]||home)();$("#gems").textContent=fmt(state.gems);$("#coins").textContent=fmt(state.coins);save()}
+function win(){
+  if(state.battleWon)return;
+  state.battleWon=true;state.battleFlow.finished=true;
+  state.achievements.firstBattle=true;state.coins+=500;
+  if(!state.titles.includes("森の初勝利"))state.titles.push("森の初勝利");
+  addLog("魔物を倒した！ コインを500枚獲得。");toast("勝利！");
+}
+function battleActor(key){return key==="enemy"?state.enemy:char(key)}
+function battleAlive(key){const c=battleActor(key);return !!c&&c.hp>0}
+function beginBattleRound(){
+  if(state.enemy.hp<=0||state.battleWon)return;
+  const entries=state.party.filter(id=>battleAlive(id)).map(id=>({id,spd:battleActor(id).spd||0,tie:Math.random()}));
+  entries.push({id:"enemy",spd:state.enemy.spd||0,tie:Math.random()});
+  entries.sort((a,b)=>b.spd-a.spd||a.tie-b.tie);
+  state.battleFlow={queue:entries.map(x=>x.id),index:0,round:state.turn,finished:false};
+  state.party.map(char).filter(Boolean).forEach(c=>c.guarding=false);
+  addLog("ターン"+state.turn+"：素早さ順で行動！");
+}
+function currentBattleActor(){
+  if(!state.battleFlow || state.battleFlow.round!==state.turn)beginBattleRound();
+  return state.battleFlow.queue[state.battleFlow.index]||null;
+}
+function advanceBattle(){
+  const flow=state.battleFlow;
+  while(!flow.finished){
+    flow.index++;
+    if(flow.index>=flow.queue.length){
+      if(state.enemy.hp<=0){win();break}
+      if(!state.party.some(id=>battleAlive(id))){flow.finished=true;addLog("仲間は全員倒れてしまった……");break}
+      state.turn++;beginBattleRound();
+    }
+    const actor=flow.queue[flow.index];
+    if(!actor||!battleAlive(actor))continue;
+    if(actor==="enemy"){
+      enemyTurn();
+      if(!state.party.some(id=>battleAlive(id))){flow.finished=true;addLog("仲間は全員倒れてしまった……");break}
+      continue;
+    }
+    break;
+  }
+}
+function enemyTurn(){
+  if(state.enemy.hp<=0)return;
+  const living=state.party.map(char).filter(c=>c&&c.hp>0);
+  if(!living.length)return;
+  const target=living[Math.floor(Math.random()*living.length)];
+  const damage=Math.max(1,Math.round(state.enemy.atk*(target.guarding?0.5:1)));
+  target.hp=Math.max(0,target.hp-damage);
+  addLog(`${state.enemy.name}の攻撃！ ${target.name}に${damage}ダメージ。`);
+}
+function doBattleAction(action){
+  if(state.enemy.hp<=0||state.battleWon){toast("戦闘は終了しているで");return}
+  if(state.battleFlow.finished){toast("再挑戦してな");return}
+  let id=currentBattleActor();
+  // 敵が先攻なら、最初の入力時に敵の行動を処理する
+  if(id==="enemy"){enemyTurn();advanceBattle();id=currentBattleActor()}
+  if(!id||id==="enemy"||!battleAlive(id)){render();return}
+  const actor=char(id);
+  if(action==="skill"&&actor.mp<10){toast("MPが足りません");render();return}
+  if(action==="attack"||action==="skill"){
+    const damage=action==="skill"?Math.round(actor.atk*1.55):actor.atk;
+    if(action==="skill")actor.mp-=10;
+    state.enemy.hp=Math.max(0,state.enemy.hp-damage);
+    addLog(`${actor.name}の${action==="skill"?"スキル":"攻撃"}！ ${damage}ダメージ。`);
+  }else if(action==="heal"){
+    if(actor.mp<8){toast("MPが足りません");return}
+    actor.mp-=8;const healed=Math.min(actor.maxHp-actor.hp,Math.max(20,Math.round(actor.maxHp*0.35)));
+    actor.hp+=healed;addLog(`${actor.name}はHPを${healed}回復した。`);
+  }else if(action==="guard"){
+    actor.guarding=true;addLog(`${actor.name}は防御態勢を取った！`);
+  }else return;
+  if(state.enemy.hp<=0)win();else advanceBattle();
+  render();
+}
+function resetBattle(){
+  state.enemy.hp=state.enemy.maxHp;state.battleWon=false;state.turn=1;
+  state.party.map(char).filter(Boolean).forEach(c=>{c.hp=c.maxHp;c.mp=c.maxMp;c.guarding=false});
+  state.log=["森のスライムが現れた！"];
+  beginBattleRound();
+  // 敵先攻を含め、次の味方入力まで進める
+  if(currentBattleActor()==="enemy"){enemyTurn();advanceBattle()}
+  render();
+}
+function ensureBattleReady(){
+  if(state.enemy.hp<=0||state.battleWon||state.battleFlow.finished)return;
+  if(state.battleFlow.round!==state.turn||!state.battleFlow.queue.length){
+    beginBattleRound();
+    if(currentBattleActor()==="enemy"){enemyTurn();advanceBattle()}
+  }
+}
 function summon(count){
   const cost=count*100;
   if(state.gems<cost){toast("召喚石が足りません");return}
@@ -226,9 +318,9 @@ function summon(count){
 }function showModal(title,body){const root=$("#modal-root");root.innerHTML=`<div class="modal-backdrop"><div class="modal"><div class="modal-head"><b>${title}</b><button data-action="close-modal">×</button></div><div class="modal-body">${body}</div><button class="btn" data-action="close-modal">閉じる</button></div></div>`}
 document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v){setView(v.dataset.view);return}const b=e.target.closest("[data-action]");if(!b)return;const a=b.dataset.action;
 if(a==="go-battle")setView("battle");
-if(a==="shuffle-scene"){const options=continentScenes.filter(s=>s.id!==currentScene.id);currentScene=options[Math.floor(Math.random()*options.length)];render();toast(`${currentScene.name}の風景に切り替えたで`)}if(a==="attack")doAttack(false);if(a==="skill")doAttack(true);if(a==="guard"){if(state.enemy.hp>0){addLog("全員が防御態勢を取った！ 次の敵の攻撃を軽減。");const before=state.enemy.atk;state.enemy.atk=Math.max(1,Math.floor(before*.5));enemyTurn();state.enemy.atk=before;state.turn++;render();}}
-if(a==="heal"){state.party.map(char).filter(Boolean).forEach(c=>c.hp=c.maxHp);addLog("仲間全員のHPを回復した。");render();toast("全員を回復したで")}
-if(a==="reset-battle"){state.enemy.hp=state.enemy.maxHp;state.battleWon=false;state.turn=1;state.party.map(char).filter(Boolean).forEach(c=>c.hp=c.maxHp);state.log=["森のスライムが現れた！"];render()}
+if(a==="shuffle-scene"){const options=continentScenes.filter(s=>s.id!==currentScene.id);currentScene=options[Math.floor(Math.random()*options.length)];render();toast(`${currentScene.name}の風景に切り替えたで`)}
+if(["attack","skill","guard","heal"].includes(a))doBattleAction(a);
+if(a==="reset-battle")resetBattle()
 if(a==="summon")summon(1);if(a==="summon10")summon(10);                                      
 if(a==="buy-gems"){
   const pack=gemPacks.find(p=>p.id===b.dataset.pack);
