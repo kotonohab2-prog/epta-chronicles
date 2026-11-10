@@ -224,22 +224,24 @@ function currentBattleActor(){
   return state.battleFlow.queue[state.battleFlow.index]||null;
 }
 function advanceBattle(){
-  const flow=state.battleFlow;
-  while(!flow.finished){
+  // 行動済みのキャラを飛ばし、次の味方まで敵の行動を自動処理
+  for(let safety=0;safety<30;safety++){
+    const flow=state.battleFlow;
+    if(flow.finished||state.enemy.hp<=0)return;
     flow.index++;
     if(flow.index>=flow.queue.length){
-      if(state.enemy.hp<=0){win();break}
-      if(!state.party.some(id=>battleAlive(id))){flow.finished=true;addLog("仲間は全員倒れてしまった……");break}
+      if(!state.party.some(id=>battleAlive(id))){flow.finished=true;addLog("仲間は全員倒れてしまった……");return}
       state.turn++;beginBattleRound();
-    }
-    const actor=flow.queue[flow.index];
-    if(!actor||!battleAlive(actor))continue;
-    if(actor==="enemy"){
-      enemyTurn();
-      if(!state.party.some(id=>battleAlive(id))){flow.finished=true;addLog("仲間は全員倒れてしまった……");break}
       continue;
     }
-    break;
+    const id=flow.queue[flow.index];
+    if(!battleAlive(id))continue;
+    if(id==="enemy"){
+      enemyTurn();
+      if(!state.party.some(id=>battleAlive(id))){flow.finished=true;addLog("仲間は全員倒れてしまった……");return}
+      continue;
+    }
+    return;
   }
 }
 function enemyTurn(){
