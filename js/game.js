@@ -156,6 +156,7 @@ function gacha(){
       <p class="muted">試作版のため、実際の課金やオンライン抽選はありません。</p>
     </article>
   </div>`;
+function records(){  
 }const ach=[["firstBattle","初めての勝利","バトルで初めて勝利する"],["firstSummon","新たな出会い","初めて召喚する"],["win3","森の探索者","バトルに3回勝利する（試作版では初回勝利で進捗を表示）"]];return `${head("実績・称号","冒険の足跡を確認しよう。")}<div class="grid2"><article class="card"><h3>実績</h3>${ach.map(([id,n,d])=>`<div class="setting-row"><div><b>${n}</b><div class="muted">${d}</div></div><span class="pill">${state.achievements[id]?"達成":"未達成"}</span></div>`).join("")}</article><article class="card"><h3>称号コレクション</h3><p class="muted">獲得した称号はここに保存されます。</p>${state.titles.length?state.titles.map(t=>`<div class="setting-row"><b>✦ ${t}</b><span class="pill">所持</span></div>`).join(""):`<div class="empty">まだ称号を獲得していません。</div>`}<p class="muted">称号の詳細な管理・検索・履歴機能は今後追加予定です。</p></article></div>`}
 function settings(){return `${head("設定","試作版の基本設定。設定はこの端末のブラウザに保存されます。")}<article class="card"><div class="setting-row"><div><b>称号獲得通知</b><div class="muted">称号を獲得した際の簡易通知</div></div><button class="switch ${state.notification?"on":""}" data-action="toggle-notification" aria-label="称号獲得通知"></button></div><div class="setting-row"><div><b>セーブデータ</b><div class="muted">ブラウザのローカルストレージを使用</div></div><button class="choice" data-action="reset-save">データ初期化</button></div><p class="muted">アカウント同期・クラウド保存は未実装です。ブラウザのデータ削除でセーブが消える場合があります。</p></article>`}
 
