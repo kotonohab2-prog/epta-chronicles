@@ -27,6 +27,21 @@ const state = {
 const defaults = structuredClone(state);
 const saved = localStorage.getItem("epta-save-v02");
 if(saved){try{const d=JSON.parse(saved);Object.assign(state,d)}catch(e){}}
+
+// 主人公5人：★5召喚キャラクター
+if(!Array.isArray(state.summonedCharacters)) state.summonedCharacters=[];
+const protagonistPool=[
+  {id:"kaisei",name:"松永海聖",role:"剣士",rarity:5,portrait:"kaisei-portrait.webp"},
+  {id:"sho",name:"石原翔",role:"ライダー",rarity:5,portrait:"sho-portrait.webp"},
+  {id:"yuki",name:"古木勇樹",role:"魔道士",rarity:5,portrait:"yuki-portrait.webp"},
+  {id:"shunki",name:"野田沢隼輝",role:"ガンナー",rarity:5,portrait:"shunki-portrait.webp"},
+  {id:"daiki",name:"今野大輝",role:"桜部隊隊長",rarity:5,portrait:"daiki-portrait.webp"}
+];
+const standardPool=[
+  {id:"riku",name:"リク",rarity:4,icon:"🗡️"},
+  {id:"mira",name:"ミラ",rarity:4,icon:"🔥"},
+  {id:"sena",name:"セナ",rarity:3,icon:"🛡️"}
+];
 function save(){localStorage.setItem("epta-save-v02",JSON.stringify(state));}
 function fmt(n){return n.toLocaleString("ja-JP")}
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove("show"),1900)}
@@ -85,8 +100,14 @@ function home(){return `
     </section>
   </div>
 </section>`}
-function party(){return `${head("キャラクター","仲間の情報を確認しよう。試作版の仮キャラクターです。")}<div class="grid2">${state.characters.map(c=>`<article class="card char"><div class="portrait ${c.element==="炎"?"fire":c.element==="風"?"wind":"light"}">${c.icon}</div><div><h3>${c.name} <span class="pill">★${c.rarity}</span></h3><p>${c.role} · ${c.element}属性</p><p>HP ${c.hp}/${c.maxHp} · 攻撃 ${c.atk}</p><span class="pill">パーティー${state.party.includes(c.id)?"編成中":"未編成"}</span></div></article>`).join("")}</div><article class="card" style="margin-top:10px"><h3>パーティー</h3><p class="muted">現在の試作編成：${state.party.map(id=>char(id)?.name).join(" / ")}</p><p class="muted">編成枠や控え枠の正式仕様は、今後の企画決定に合わせて調整するで。</p></article>`}
-function battle(){
+function party(){
+  const owned=protagonistPool.filter(p=>state.summonedCharacters.includes(p.id));
+  return `${head("キャラクター","仲間の情報を確認しよう。召喚で迎えた主人公はここに表示されます。")}
+  <div class="grid2">${state.characters.map(c=>`<article class="card char"><div class="portrait ${c.element==="炎"?"fire":c.element==="風"?"wind":"light"}">${c.icon}</div><div><h3>${c.name} <span class="pill">★${c.rarity}</span></h3><p>${c.role} · ${c.element}属性</p><p>HP ${c.hp}/${c.maxHp} · 攻撃 ${c.atk}</p><span class="pill">パーティー${state.party.includes(c.id)?"編成中":"未編成"}</span></div></article>`).join("")}</div>
+  <article class="card" style="margin-top:10px"><h3>召喚で迎えた主人公</h3>
+  ${owned.length?`<div class="grid2">${owned.map(p=>`<article class="card char"><img src="${p.portrait}" alt="${p.name}" style="width:92px;height:120px;object-fit:contain;object-position:center top;border-radius:9px"><div><h3>${p.name} <span class="pill">★5</span></h3><p>${p.role}</p><span class="pill">所持</span></div></article>`).join("")}</div>`:`<p class="muted">まだ主人公を召喚していません。召喚で迎えると、ここに表示されます。</p>`}
+  <h3 style="margin-top:16px">パーティー</h3><p class="muted">現在の試作編成：${state.party.map(id=>char(id)?.name).join(" / ")}</p><p class="muted">主人公5人の戦闘参加・編成機能は次の段階で実装します。</p></article>`;
+}function battle(){
   const enemy=state.enemy;
   const members=state.party.map(char).filter(Boolean);
   const pct=(v,m)=>Math.max(0,Math.min(100,v/m*100));
@@ -110,15 +131,55 @@ function battle(){
     ${state.battleWon?`<div class="battle-victory"><b>VICTORY</b><span>勝利！ コイン +500</span></div>`:''}
   </section>`
 }
-function gacha(){return `${head("キャラクター召喚","召喚石を使って仲間を迎えよう。ここでは無料の試作用通貨を使用します。")}<div class="grid2"><article class="card"><div class="eyebrow">STANDARD SUMMON</div><h2>旅立ちの召喚</h2><p class="muted">★5：1% ／ ★4：14% ／ ★3：85%</p><p class="muted">※現在は仮の3キャラクターから抽選します。</p><h2 style="color:var(--gold)">✧ ${fmt(state.gems)}</h2><div class="command-row"><button class="btn" data-action="summon">1回召喚　100</button><button class="btn secondary" data-action="summon10">10回召喚　1,000</button></div></article><article class="card"><h3>召喚について</h3><p class="muted">試作版のガチャは演出・所持確認のテスト用です。実際の課金やオンライン抽選はありません。</p><p class="muted">排出確率は企画メモにある★5 1%・★4 14%・★3 85%を仮採用しています。</p></article></div>`}
-function records(){const ach=[["firstBattle","初めての勝利","バトルで初めて勝利する"],["firstSummon","新たな出会い","初めて召喚する"],["win3","森の探索者","バトルに3回勝利する（試作版では初回勝利で進捗を表示）"]];return `${head("実績・称号","冒険の足跡を確認しよう。")}<div class="grid2"><article class="card"><h3>実績</h3>${ach.map(([id,n,d])=>`<div class="setting-row"><div><b>${n}</b><div class="muted">${d}</div></div><span class="pill">${state.achievements[id]?"達成":"未達成"}</span></div>`).join("")}</article><article class="card"><h3>称号コレクション</h3><p class="muted">獲得した称号はここに保存されます。</p>${state.titles.length?state.titles.map(t=>`<div class="setting-row"><b>✦ ${t}</b><span class="pill">所持</span></div>`).join(""):`<div class="empty">まだ称号を獲得していません。</div>`}<p class="muted">称号の詳細な管理・検索・履歴機能は今後追加予定です。</p></article></div>`}
+function gacha(){
+  return `${head("キャラクター召喚","召喚石を使って仲間を迎えよう。主人公5人は★5として登場します。")}
+  <div class="grid2">
+    <article class="card">
+      <div class="eyebrow">STANDARD SUMMON</div><h2>旅立ちの召喚</h2>
+      <p class="muted">★5：1% ／ ★4：14% ／ ★3：85%</p>
+      <p class="muted">★5枠は主人公5人。各キャラクターの個別排出率は0.2%です。</p>
+      <div class="grid2" style="margin:12px 0">${protagonistPool.map(p=>`<div style="display:flex;align-items:center;gap:8px;min-width:0"><img src="${p.portrait}" alt="${p.name}" style="width:48px;height:64px;object-fit:contain;object-position:center top;border-radius:6px"><small>${p.name}<br>★5 · 0.2%</small></div>`).join("")}</div>
+      <h2 style="color:var(--gold)">✧ ${fmt(state.gems)}</h2>
+      <div class="command-row"><button class="btn" data-action="summon">1回召喚　100</button><button class="btn secondary" data-action="summon10">10回召喚　1,000</button></div>
+    </article>
+    <article class="card"><h3>召喚について</h3>
+      <p class="muted">★5：主人公5人（各0.2%）</p>
+      <p class="muted">★4：リク・ミラ（各7%）</p>
+      <p class="muted">★3：セナ（85%）</p>
+      <p class="muted">重複して召喚した場合も結果に表示されます。主人公の所持状況はこの端末のセーブデータに保存されます。</p>
+      <p class="muted">試作版のため、実際の課金やオンライン抽選はありません。</p>
+    </article>
+  </div>`;
+}function records(){const ach=[["firstBattle","初めての勝利","バトルで初めて勝利する"],["firstSummon","新たな出会い","初めて召喚する"],["win3","森の探索者","バトルに3回勝利する（試作版では初回勝利で進捗を表示）"]];return `${head("実績・称号","冒険の足跡を確認しよう。")}<div class="grid2"><article class="card"><h3>実績</h3>${ach.map(([id,n,d])=>`<div class="setting-row"><div><b>${n}</b><div class="muted">${d}</div></div><span class="pill">${state.achievements[id]?"達成":"未達成"}</span></div>`).join("")}</article><article class="card"><h3>称号コレクション</h3><p class="muted">獲得した称号はここに保存されます。</p>${state.titles.length?state.titles.map(t=>`<div class="setting-row"><b>✦ ${t}</b><span class="pill">所持</span></div>`).join(""):`<div class="empty">まだ称号を獲得していません。</div>`}<p class="muted">称号の詳細な管理・検索・履歴機能は今後追加予定です。</p></article></div>`}
 function settings(){return `${head("設定","試作版の基本設定。設定はこの端末のブラウザに保存されます。")}<article class="card"><div class="setting-row"><div><b>称号獲得通知</b><div class="muted">称号を獲得した際の簡易通知</div></div><button class="switch ${state.notification?"on":""}" data-action="toggle-notification" aria-label="称号獲得通知"></button></div><div class="setting-row"><div><b>セーブデータ</b><div class="muted">ブラウザのローカルストレージを使用</div></div><button class="choice" data-action="reset-save">データ初期化</button></div><p class="muted">アカウント同期・クラウド保存は未実装です。ブラウザのデータ削除でセーブが消える場合があります。</p></article>`}
 function render(){const s=$("#screen");s.innerHTML=({home,battle,party,gacha,records,settings}[state.view]||home)();$("#gems").textContent=fmt(state.gems);$("#coins").textContent=fmt(state.coins);save()}
 function win(){if(state.battleWon)return;state.battleWon=true;state.achievements.firstBattle=true;state.coins+=500;state.titles.push("森の初勝利");addLog("魔物を倒した！ コインを500枚獲得。");toast("実績達成：初めての勝利")}
 function enemyTurn(){if(state.enemy.hp<=0)return;const living=state.party.map(char).filter(c=>c&&c.hp>0);if(!living.length){addLog("仲間は全員倒れてしまった……");return}const target=living[Math.floor(Math.random()*living.length)];target.hp=Math.max(0,target.hp-state.enemy.atk);addLog(`${state.enemy.name}の攻撃！ ${target.name}に${state.enemy.atk}ダメージ。`)}
 function doAttack(skill=false){if(state.enemy.hp<=0){toast("魔物はすでに倒れているで");return}let damage=0;state.party.map(char).filter(c=>c&&c.hp>0).forEach(c=>{let d=skill?Math.round(c.atk*1.55):c.atk;damage+=d});state.enemy.hp=Math.max(0,state.enemy.hp-damage);addLog(`${skill?"魔法攻撃":"全員の攻撃"}！ ${damage}ダメージを与えた。`);if(state.enemy.hp<=0){win()}else{enemyTurn()}state.turn++;render()}
-function summon(count){const cost=count*100;if(state.gems<cost){toast("召喚石が足りません");return}state.gems-=cost;const pool=[{name:"リク",rarity:4},{name:"ミラ",rarity:4},{name:"セナ",rarity:3}];let got=[];for(let i=0;i<count;i++){let roll=Math.random()*100,rarity=roll<1?5:roll<15?4:3;let choices=pool.filter(p=>p.rarity===rarity);if(!choices.length)choices=pool;let item=choices[Math.floor(Math.random()*choices.length)];got.push(item.name+"（★"+item.rarity+"）")}state.achievements.firstSummon=true;addLog("召喚："+got.join("、"));render();showModal("召喚結果",got.map(x=>`<div class="result-row">✧ ${x}</div>`).join(""))}
-function showModal(title,body){const root=$("#modal-root");root.innerHTML=`<div class="modal-backdrop"><div class="modal"><div class="modal-head"><b>${title}</b><button data-action="close-modal">×</button></div><div class="modal-body">${body}</div><button class="btn" data-action="close-modal">閉じる</button></div></div>`}
+function summon(count){
+  const cost=count*100;
+  if(state.gems<cost){toast("召喚石が足りません");return}
+  state.gems-=cost;
+  const pool=[...protagonistPool,...standardPool];
+  const got=[];
+  for(let i=0;i<count;i++){
+    const roll=Math.random()*100;
+    const rarity=roll<1?5:roll<15?4:3;
+    const choices=pool.filter(p=>p.rarity===rarity);
+    const item=choices[Math.floor(Math.random()*choices.length)];
+    const isNew=item.rarity===5&&!state.summonedCharacters.includes(item.id);
+    if(item.rarity===5&&isNew) state.summonedCharacters.push(item.id);
+    got.push({...item,isNew});
+  }
+  state.achievements.firstSummon=true;
+  addLog("召喚："+got.map(x=>x.name+"（★"+x.rarity+"）").join("、"));
+  render();
+  showModal("召喚結果",got.map(x=>`
+    <div class="result-row" style="display:flex;align-items:center;gap:12px;margin:10px 0">
+      ${x.portrait?`<img src="${x.portrait}" alt="${x.name}" style="width:68px;height:88px;object-fit:contain;object-position:center top;border-radius:7px">`:`<span style="font-size:28px">${x.icon||"✧"}</span>`}
+      <div><b>${x.name}（★${x.rarity}）</b><small style="display:block;color:var(--muted)">${x.rarity===5?(x.isNew?"新たな主人公が仲間になった！":"所持済みの主人公"):"召喚成功"}</small></div>
+    </div>`).join(""));
+}function showModal(title,body){const root=$("#modal-root");root.innerHTML=`<div class="modal-backdrop"><div class="modal"><div class="modal-head"><b>${title}</b><button data-action="close-modal">×</button></div><div class="modal-body">${body}</div><button class="btn" data-action="close-modal">閉じる</button></div></div>`}
 document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if(v){setView(v.dataset.view);return}const b=e.target.closest("[data-action]");if(!b)return;const a=b.dataset.action;
 if(a==="go-battle")setView("battle");
 if(a==="shuffle-scene"){const options=continentScenes.filter(s=>s.id!==currentScene.id);currentScene=options[Math.floor(Math.random()*options.length)];render();toast(`${currentScene.name}の風景に切り替えたで`)}if(a==="attack")doAttack(false);if(a==="skill")doAttack(true);if(a==="guard"){if(state.enemy.hp>0){addLog("全員が防御態勢を取った！ 次の敵の攻撃を軽減。");const before=state.enemy.atk;state.enemy.atk=Math.max(1,Math.floor(before*.5));enemyTurn();state.enemy.atk=before;state.turn++;render();}}
