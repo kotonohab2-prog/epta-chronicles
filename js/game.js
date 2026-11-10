@@ -30,6 +30,9 @@ if(saved){try{const d=JSON.parse(saved);Object.assign(state,d)}catch(e){}}
 
 // 主人公5人：★5召喚キャラクター
 if(!Array.isArray(state.summonedCharacters)) state.summonedCharacters=[];
+// 既存セーブデータは天井導入時に一度だけ70回分を引き継ぐ
+if(!Number.isInteger(state.pityCount)) state.pityCount = saved ? 70 : 0;
+state.pityCount = Math.max(0, Math.min(79, state.pityCount));
 const protagonistPool=[
   {id:"kaisei",name:"松永海聖",role:"剣士",rarity:5,portrait:"kaisei-portrait.webp"},
   {id:"sho",name:"石原翔",role:"ライダー",rarity:5,portrait:"sho-portrait.webp"},
@@ -144,12 +147,15 @@ function gacha(){
       <div class="eyebrow">STANDARD SUMMON</div><h2>旅立ちの召喚</h2>
       <p class="muted">★5：1% ／ ★4：14% ／ ★3：85%</p>
       <p class="muted">★5枠は主人公5人。各キャラクターの個別排出率は0.2%です。</p>
+      <p><b>★5天井：${state.pityCount} / 80</b>　<span class="muted">あと${80-state.pityCount}回で★5主人公確定</span></p>
+      <div style="height:10px;background:rgba(128,128,128,.25);border-radius:999px;overflow:hidden;margin-bottom:12px"><div style="height:100%;width:${state.pityCount/80*100}%;background:#D6AD65;border-radius:999px"></div></div>
       <div class="grid2" style="margin:12px 0">${protagonistPool.map(p=>`<div style="display:flex;align-items:center;gap:8px;min-width:0"><img src="${p.portrait}" alt="${p.name}" style="width:48px;height:64px;object-fit:contain;object-position:center top;border-radius:6px"><small>${p.name}<br>★5 · 0.2%</small></div>`).join("")}</div>
       <h2 style="color:var(--gold)">✧ ${fmt(state.gems)}</h2>
       <div class="command-row"><button class="btn" data-action="summon">1回召喚　100</button><button class="btn secondary" data-action="summon10">10回召喚　1,000</button></div>
     </article>
     <article class="card"><h3>召喚について</h3>
       <p class="muted">★5：主人公5人（各0.2%）</p>
+      <p class="muted">★5が出なければ80回目に主人公5人からランダム確定。★5が出ると天井カウントはリセットされます。</p>
       <p class="muted">★4：リク・ミラ（各7%）</p>
       <p class="muted">★3：セナ（85%）</p>
       <p class="muted">重複して召喚した場合も結果に表示されます。主人公の所持状況はこの端末のセーブデータに保存されます。</p>
@@ -201,7 +207,8 @@ function summon(count){
   const got=[];
   for(let i=0;i<count;i++){
     const roll=Math.random()*100;
-    const rarity=roll<1?5:roll<15?4:3;
+    const rarity=state.pityCount>=79||roll<1?5:roll<15?4:3;
+    state.pityCount=rarity===5?0:state.pityCount+1;
     const choices=pool.filter(p=>p.rarity===rarity);
     const item=choices[Math.floor(Math.random()*choices.length)];
     const isNew=item.rarity===5&&!state.summonedCharacters.includes(item.id);
