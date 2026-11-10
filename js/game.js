@@ -42,6 +42,12 @@ const standardPool=[
   {id:"mira",name:"ミラ",rarity:4,icon:"🔥"},
   {id:"sena",name:"セナ",rarity:3,icon:"🛡️"}
 ];
+const gemPacks=[
+  {id:"small",name:"お試し交換",gems:500,coins:1000,tag:"まずはお試し"},
+  {id:"medium",name:"冒険者パック",gems:1200,coins:2200,tag:"おすすめ"},
+  {id:"large",name:"大容量パック",gems:3000,coins:5000,tag:"人気"},
+  {id:"mega",name:"特大パック",gems:6500,coins:10000,tag:"たっぷり"}
+];
 function save(){localStorage.setItem("epta-save-v02",JSON.stringify(state));}
 function fmt(n){return n.toLocaleString("ja-JP")}
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove("show"),1900)}
@@ -150,9 +156,37 @@ function gacha(){
       <p class="muted">試作版のため、実際の課金やオンライン抽選はありません。</p>
     </article>
   </div>`;
-}function records(){const ach=[["firstBattle","初めての勝利","バトルで初めて勝利する"],["firstSummon","新たな出会い","初めて召喚する"],["win3","森の探索者","バトルに3回勝利する（試作版では初回勝利で進捗を表示）"]];return `${head("実績・称号","冒険の足跡を確認しよう。")}<div class="grid2"><article class="card"><h3>実績</h3>${ach.map(([id,n,d])=>`<div class="setting-row"><div><b>${n}</b><div class="muted">${d}</div></div><span class="pill">${state.achievements[id]?"達成":"未達成"}</span></div>`).join("")}</article><article class="card"><h3>称号コレクション</h3><p class="muted">獲得した称号はここに保存されます。</p>${state.titles.length?state.titles.map(t=>`<div class="setting-row"><b>✦ ${t}</b><span class="pill">所持</span></div>`).join(""):`<div class="empty">まだ称号を獲得していません。</div>`}<p class="muted">称号の詳細な管理・検索・履歴機能は今後追加予定です。</p></article></div>`}
+}const ach=[["firstBattle","初めての勝利","バトルで初めて勝利する"],["firstSummon","新たな出会い","初めて召喚する"],["win3","森の探索者","バトルに3回勝利する（試作版では初回勝利で進捗を表示）"]];return `${head("実績・称号","冒険の足跡を確認しよう。")}<div class="grid2"><article class="card"><h3>実績</h3>${ach.map(([id,n,d])=>`<div class="setting-row"><div><b>${n}</b><div class="muted">${d}</div></div><span class="pill">${state.achievements[id]?"達成":"未達成"}</span></div>`).join("")}</article><article class="card"><h3>称号コレクション</h3><p class="muted">獲得した称号はここに保存されます。</p>${state.titles.length?state.titles.map(t=>`<div class="setting-row"><b>✦ ${t}</b><span class="pill">所持</span></div>`).join(""):`<div class="empty">まだ称号を獲得していません。</div>`}<p class="muted">称号の詳細な管理・検索・履歴機能は今後追加予定です。</p></article></div>`}
 function settings(){return `${head("設定","試作版の基本設定。設定はこの端末のブラウザに保存されます。")}<article class="card"><div class="setting-row"><div><b>称号獲得通知</b><div class="muted">称号を獲得した際の簡易通知</div></div><button class="switch ${state.notification?"on":""}" data-action="toggle-notification" aria-label="称号獲得通知"></button></div><div class="setting-row"><div><b>セーブデータ</b><div class="muted">ブラウザのローカルストレージを使用</div></div><button class="choice" data-action="reset-save">データ初期化</button></div><p class="muted">アカウント同期・クラウド保存は未実装です。ブラウザのデータ削除でセーブが消える場合があります。</p></article>`}
-function render(){const s=$("#screen");s.innerHTML=({home,battle,party,gacha,records,settings}[state.view]||home)();$("#gems").textContent=fmt(state.gems);$("#coins").textContent=fmt(state.coins);save()}
+
+function shop(){
+  return `${head("召喚石ショップ","ゲーム内コインを召喚石に交換しよう。実際のお金は一切使いません。")}
+  <div class="grid2">
+    <article class="card">
+      <div class="eyebrow">VIRTUAL EXCHANGE</div>
+      <h2>召喚石交換所</h2>
+      <p class="muted">所持コイン：🪙 ${fmt(state.coins)} ／ 所持召喚石：✧ ${fmt(state.gems)}</p>
+      <div class="grid2">
+        ${gemPacks.map(p=>`
+          <article class="card">
+            <span class="pill">${p.tag}</span>
+            <h2 style="color:var(--gold)">✧ ${fmt(p.gems)}</h2>
+            <h3>${p.name}</h3>
+            <p>必要コイン：🪙 ${fmt(p.coins)}</p>
+            <button class="btn" data-action="buy-gems" data-pack="${p.id}" ${state.coins<p.coins?"disabled":""}>交換する</button>
+          </article>
+        `).join("")}
+      </div>
+    </article>
+    <article class="card">
+      <h3>交換について</h3>
+      <p class="muted">このショップは仮想ショップです。実際のお金は使用しません。</p>
+      <p class="muted">ゲーム内コインを消費して召喚石を獲得できます。</p>
+      <p class="muted">召喚石100個で1回召喚、1,000個で10回召喚できます。</p>
+    </article>
+  </div>`;
+}
+function render(){const s=$("#screen");s.innerHTML=({home,battle,party,gacha,shop,records,settings}[state.view]||home)();$("#gems").textContent=fmt(state.gems);$("#coins").textContent=fmt(state.coins);save()}
 function win(){if(state.battleWon)return;state.battleWon=true;state.achievements.firstBattle=true;state.coins+=500;state.titles.push("森の初勝利");addLog("魔物を倒した！ コインを500枚獲得。");toast("実績達成：初めての勝利")}
 function enemyTurn(){if(state.enemy.hp<=0)return;const living=state.party.map(char).filter(c=>c&&c.hp>0);if(!living.length){addLog("仲間は全員倒れてしまった……");return}const target=living[Math.floor(Math.random()*living.length)];target.hp=Math.max(0,target.hp-state.enemy.atk);addLog(`${state.enemy.name}の攻撃！ ${target.name}に${state.enemy.atk}ダメージ。`)}
 function doAttack(skill=false){if(state.enemy.hp<=0){toast("魔物はすでに倒れているで");return}let damage=0;state.party.map(char).filter(c=>c&&c.hp>0).forEach(c=>{let d=skill?Math.round(c.atk*1.55):c.atk;damage+=d});state.enemy.hp=Math.max(0,state.enemy.hp-damage);addLog(`${skill?"魔法攻撃":"全員の攻撃"}！ ${damage}ダメージを与えた。`);if(state.enemy.hp<=0){win()}else{enemyTurn()}state.turn++;render()}
@@ -185,7 +219,20 @@ if(a==="go-battle")setView("battle");
 if(a==="shuffle-scene"){const options=continentScenes.filter(s=>s.id!==currentScene.id);currentScene=options[Math.floor(Math.random()*options.length)];render();toast(`${currentScene.name}の風景に切り替えたで`)}if(a==="attack")doAttack(false);if(a==="skill")doAttack(true);if(a==="guard"){if(state.enemy.hp>0){addLog("全員が防御態勢を取った！ 次の敵の攻撃を軽減。");const before=state.enemy.atk;state.enemy.atk=Math.max(1,Math.floor(before*.5));enemyTurn();state.enemy.atk=before;state.turn++;render();}}
 if(a==="heal"){state.party.map(char).filter(Boolean).forEach(c=>c.hp=c.maxHp);addLog("仲間全員のHPを回復した。");render();toast("全員を回復したで")}
 if(a==="reset-battle"){state.enemy.hp=state.enemy.maxHp;state.battleWon=false;state.turn=1;state.party.map(char).filter(Boolean).forEach(c=>c.hp=c.maxHp);state.log=["森のスライムが現れた！"];render()}
-if(a==="summon")summon(1);if(a==="summon10")summon(10);
+if(a==="summon")summon(1);if(a==="summon10")summon(10);                                      
+if(a==="buy-gems"){
+  const pack=gemPacks.find(p=>p.id===b.dataset.pack);
+  if(!pack){toast("商品が見つかりません");return}
+  if(state.coins<pack.coins){
+    toast("コインが足りません！");
+    return;
+  }
+  state.coins-=pack.coins;
+  state.gems+=pack.gems;
+  addLog(pack.name+"を交換した。");
+  render();
+  toast(pack.gems+"個の召喚石を獲得！");
+}
 if(a==="toggle-notification"){state.notification=!state.notification;render();toast("通知設定を変更したで")}
 if(a==="reset-save"){showModal("セーブデータ初期化","<p>この端末に保存した試作版データを初期化します。よろしいですか？</p><button class='btn danger' data-action='confirm-reset'>初期化する</button>")}
 if(a==="confirm-reset"){localStorage.removeItem("epta-save-v02");location.reload()}
