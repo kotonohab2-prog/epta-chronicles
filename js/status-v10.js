@@ -78,7 +78,7 @@ function applyRoundEndStatuses(){
 }
 function skipUnavailableInputs(){
  const flow=state.battleFlow;
- while(flow.inputIndex<state.party.length){
+ while(flow.inputIndex<Math.min(4,state.party.length)){
   const actor=char(state.party[flow.inputIndex]);
   if(!actor||actor.hp<=0||actor.backline){flow.inputIndex++;continue}
   // 状態異常は行動時に判定し、コマンド選択は可能にする
@@ -95,6 +95,8 @@ function executeBattleRound(){
   if(endBattleIfNeeded())break;
   if(entry.id==="enemy"){enemyTurn();continue}
   const actor=char(entry.id);if(!actor||actor.hp<=0||actor.backline)continue;
+  if(entry.action==="swap"){const incoming=char(entry.target);if(incoming&&incoming.hp>0&&state.party.indexOf(incoming.id)>=4){const a=state.party.indexOf(actor.id),b=state.party.indexOf(incoming.id);[state.party[a],state.party[b]]=[state.party[b],state.party[a]];setBackline(actor,true);setBackline(incoming,false);incoming.eptaJustSwapped=state.turn;addLog(actor.name+"と"+incoming.name+"が交代した！")}continue}
+  if(entry.action==="replace"){const outgoing=char(entry.outgoing),incoming=char(entry.target);if(outgoing&&outgoing.hp<=0&&incoming&&incoming.hp>0&&state.party.indexOf(outgoing.id)<4&&state.party.indexOf(incoming.id)>=4){const a=state.party.indexOf(outgoing.id),b=state.party.indexOf(incoming.id);[state.party[a],state.party[b]]=[state.party[b],state.party[a]];setBackline(outgoing,true);setBackline(incoming,false);incoming.eptaJustSwapped=state.turn;addLog(incoming.name+"が"+outgoing.name+"に代わって前衛へ！")}continue}
   actor.guarding=false;
   if(!statusCanAct(actor,entry.action))continue;
   if(entry.action==="attack"||entry.action==="skill"){
@@ -133,7 +135,7 @@ function resetBattle(){
  state.party.map(char).filter(Boolean).forEach(c=>{
   c.hp=c.maxHp;c.mp=c.maxMp;c.guarding=false;
   c.statusEffects=statusList(c).filter(s=>EPTA_STATUS[s.id]?.persistent);
-  c.buffs=[];c.debuffs=[];c.backline=false;
+  c.buffs=[];c.debuffs=[];c.backline=state.party.indexOf(c.id)>=4;c.eptaJustSwapped=0;
  });
  state.log=["森のスライムが現れた！"];
  beginBattleRound();render();
