@@ -385,3 +385,14 @@ footer{font-size:10px;color:#8fa0b2;padding:0 8px}
 @keyframes heroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}@keyframes enemyBob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-7px) scale(1.035)}}
 @media(max-width:760px){.battle-stage{min-height:260px;grid-template-columns:1fr 22px 1fr}.battle-side{padding:12px 8px}.battle-formation{gap:4px;grid-template-rows:repeat(2,minmax(82px,1fr))}.hero-sprite{width:48px;height:56px;font-size:36px}.hero-orbit{width:60px;bottom:27px}.hero-nameplate b{font-size:10px}.hero-nameplate small{font-size:7px}.enemy-sprite{font-size:66px}.enemy-rings{width:110px;height:75px}.battle-lower{grid-template-columns:1fr}.battle-status-list{grid-template-columns:repeat(2,minmax(0,1fr))}.command-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.battle-command{min-height:68px}.battle-log-panel{grid-template-columns:1fr}.battle-log-panel .battle-panel-heading{border-bottom:1px solid rgba(142,177,208,.13);padding-bottom:8px}}
 @media(max-width:420px){.command-grid{gap:4px}.battle-command{padding:6px 2px}.battle-command small{font-size:7px}.battle-status-list{grid-template-columns:1fr 1fr}.battle-stage{min-height:235px}}
+
+
+/* Party formation v1 */
+.party-slot-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0}
+.party-slot{min-height:188px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:12px 6px;border:1px solid rgba(226,190,119,.35);border-radius:13px;background:linear-gradient(145deg,#19334f,#0d1e32);text-align:center}
+.party-slot b{font-size:13px}.party-slot small{font-size:10px;color:#9fb5cc}.party-empty{color:#9fb5cc;font-size:13px}
+.party-roster{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}
+.party-roster-card{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid rgba(140,170,210,.2);border-radius:12px;background:rgba(20,43,67,.75)}
+.party-roster-card>div{flex:1;min-width:0}.party-roster-card p{font-size:11px;margin:6px 0 0}.party-roster-card .btn{flex-shrink:0}
+.party-roster-card b{font-size:13px}
+@media(max-width:760px){.party-slot-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.party-roster{grid-template-columns:1fr}.party-roster-card{flex-wrap:wrap}}
