@@ -164,13 +164,31 @@ function home(){return `
     </section>
   </div>
 </section>`}
+function showCharacterDetail(id){
+  const c=char(id);
+  if(!c)return;
+  const p=protagonistPool.find(x=>x.id===id);
+  if(p&&!state.summonedCharacters.includes(id))return;
+  const image=p?'<img class="character-detail-portrait" src="'+p.portrait+'" alt="'+c.name+'の立ち絵">':'<span class="character-detail-icon">'+c.icon+'</span>';
+  const stats=[["HP",c.hp+" / "+c.maxHp],["MP",c.mp+" / "+c.maxMp],["攻撃力",c.atk],["素早さ",c.spd],["物理防御ランク",c.defenseRank||"未設定"],["魔法防御ランク",c.magicRank||"未設定"]];
+  const content='<div class="character-detail">'+
+    '<div class="character-detail-hero">'+image+'<div><span class="pill">★'+c.rarity+'</span><h2>'+c.name+'</h2><p>'+c.role+' / '+c.element+'属性</p><p>'+(state.party.includes(id)?"出撃メンバーに編成中":"現在は未編成")+'</p></div></div>'+
+    '<h3>基本ステータス</h3><div class="character-detail-stats">'+stats.map(([name,value])=>'<div><small>'+name+'</small><b>'+value+'</b></div>').join("")+'</div>'+
+    '<h3>戦闘コマンド（現在の試作仕様）</h3><div class="character-detail-skills">'+
+    '<p><b>⚔ 通常攻撃</b><span>基礎ダメージ '+c.atk+'</span></p>'+
+    '<p><b>✧ スキル</b><span>MP 10 / 基礎ダメージ '+Math.round(c.atk*1.55)+'</span></p>'+
+    '<p><b>＋ 回復</b><span>MP 8 / 自身のHPを最大'+Math.max(20,Math.round(c.maxHp*.35))+'回復</span></p>'+
+    '<p><b>◇ 防御</b><span>物理 '+guardReduction(c,"physical")+'% / 魔法 '+guardReduction(c,"magic")+'% 軽減</span></p></div>'+
+    '<p class="muted">※ 数値は試作版の暫定値です。固有スキル・人物プロフィールは今後追加予定です。</p></div>';
+  showModal(c.name+"の詳細",content);
+}
 function party(){
   const roster=state.characters.filter(c=>c&&(!protagonistPool.some(p=>p.id===c.id)||state.summonedCharacters.includes(c.id)));
   const slots=Array.from({length:4},(_,i)=>state.party[i]?char(state.party[i]):null);
   const portrait=c=>{const p=protagonistPool.find(x=>x.id===c.id);return p?'<img src="'+p.portrait+'" alt="" style="width:66px;height:82px;object-fit:contain" onerror="this.style.display=\'none\'">':'<span style="font-size:34px">'+c.icon+'</span>'};
   return head("パーティ編成","召喚した仲間を最大4人まで編成できます。変更は自動保存されます。")+
-  '<section class="card"><h2>出撃メンバー（'+state.party.length+'/4）</h2><div class="party-slot-grid">'+slots.map((c,i)=>'<div class="party-slot"><small>SLOT '+(i+1)+'</small>'+(c?portrait(c)+'<b>'+c.name+'</b><small>HP '+c.maxHp+' / ATK '+c.atk+'</small><button class="choice" data-action="party-remove" data-id="'+c.id+'">外す</button>':'<span class="party-empty">＋ 空き枠</span>')+'</div>').join('')+'</div><p class="muted">出撃メンバーは最低1人必要です。編成変更時は進行中の戦闘が最初からになります。</p></section>'+
-  '<section class="card" style="margin-top:14px"><h2>所持キャラクター</h2><div class="party-roster">'+roster.map(c=>{const selected=state.party.includes(c.id);return '<article class="party-roster-card">'+portrait(c)+'<div><b>'+c.name+' <span class="pill">★'+c.rarity+'</span></b><p class="muted">'+c.role+' / HP '+c.maxHp+' / ATK '+c.atk+' / SPD '+c.spd+'</p></div><button class="btn" data-action="'+(selected?'party-remove':'party-add')+'" data-id="'+c.id+'" '+(!selected&&state.party.length>=4?'disabled':'')+'>'+(selected?'編成解除':'編成する')+'</button></article>'}).join('')+'</div></section>';
+  '<section class="card"><h2>出撃メンバー（'+state.party.length+'/4）</h2><div class="party-slot-grid">'+slots.map((c,i)=>'<div class="party-slot"><small>SLOT '+(i+1)+'</small>'+(c?portrait(c)+'<b>'+c.name+'</b><small>HP '+c.maxHp+' / ATK '+c.atk+'</small><button class="choice" data-action="party-detail" data-id="'+c.id+'">詳細</button><button class="choice" data-action="party-remove" data-id="'+c.id+'">外す</button>':'<span class="party-empty">＋ 空き枠</span>')+'</div>').join('')+'</div><p class="muted">出撃メンバーは最低1人必要です。編成変更時は進行中の戦闘が最初からになります。</p></section>'+
+  '<section class="card" style="margin-top:14px"><h2>所持キャラクター</h2><div class="party-roster">'+roster.map(c=>{const selected=state.party.includes(c.id);return '<article class="party-roster-card">'+portrait(c)+'<div><b>'+c.name+' <span class="pill">★'+c.rarity+'</span></b><p class="muted">'+c.role+' / HP '+c.maxHp+' / ATK '+c.atk+' / SPD '+c.spd+'</p></div><button class="choice" data-action="party-detail" data-id="'+c.id+'">詳細</button><button class="btn" data-action="'+(selected?'party-remove':'party-add')+'" data-id="'+c.id+'" '+(!selected&&state.party.length>=4?'disabled':'')+'>'+(selected?'編成解除':'編成する')+'</button></article>'}).join('')+'</div></section>';
 }
 function battle(){
   const enemy=state.enemy;
@@ -451,6 +469,7 @@ document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if
 if(a==="go-battle")setView("battle");
 if(a==="shuffle-scene"){const options=continentScenes.filter(s=>s.id!==currentScene.id);currentScene=options[Math.floor(Math.random()*options.length)];render();toast(`${currentScene.name}の風景に切り替えたで`)}
 if(["attack","skill","guard","heal"].includes(a))doBattleAction(a);
+if(a==="party-detail")showCharacterDetail(b.dataset.id);
 if(a==="party-add")updateParty(b.dataset.id,true);
 if(a==="party-remove")updateParty(b.dataset.id,false);
 if(a==="reset-battle")resetBattle();if(a==="battle-back")backBattleInput()
