@@ -15,8 +15,44 @@ syncOwnedBattleCharacters=function(){
 const eptaFormationOldParty=party;
 party=function(){
  const output=eptaFormationOldParty();
- return output.replace('出撃メンバー（','編成メンバー（').replace('<section class="card"><h2>編成メンバー','<section class="card"><p class="muted">前衛は1〜4枠、後衛は5〜6枠。後衛は戦闘中に行動できません。</p><h2>編成メンバー');
+ const owned=state.characters.filter(c=>c&&(!protagonistPool.some(p=>p.id===c.id)||state.summonedCharacters.includes(c.id)));
+ const choices=owned.map(c=>'<option value="'+c.id+'">'+c.name+(state.party.includes(c.id)?'（編成中）':'')+'</option>').join('');
+ const slot=(i)=>{
+  const id=state.party[i],c=id?char(id):null;
+  return '<div class="epta-formation-edit-slot"><b>'+(i<4?'⚔ 前衛':'◇ 後衛')+' '+(i+1)+'</b><span>'+(c?c.icon+' '+c.name:'空き枠')+'</span><select data-epta-slot="'+i+'" aria-label="'+(i+1)+'番枠のキャラクター"><option value="">'+(c?'編成解除':'キャラクターを選択')+'</option>'+owned.map(x=>'<option value="'+x.id+'" '+(id===x.id?'selected':'')+'>'+x.name+'</option>').join('')+'</select></div>';
+ };
+ const editor='<section class="card epta-formation-editor"><h2>前衛・後衛の配置</h2><p class="muted">前衛4枠・後衛2枠に直接キャラクターを指定できるで。編成済みの仲間を選ぶと配置を入れ替えるよ。</p><div class="epta-formation-edit-grid">'+Array.from({length:6},(_,i)=>slot(i)).join('')+'</div><p class="muted">※ 後衛に編成するには、所持キャラクターが5人以上必要です。編成変更で戦闘は最初からになります。</p></section>';
+ return output.replace('出撃メンバー（','編成メンバー（').replace('<section class="card"><h2>編成メンバー',editor+'<section class="card"><p class="muted">前衛は1〜4枠、後衛は5〜6枠。後衛は戦闘中に行動できません。</p><h2>編成メンバー');
 };
+document.addEventListener('change',e=>{
+ const select=e.target.closest('select[data-epta-slot]');if(!select)return;
+ const index=Number(select.dataset.eptaSlot),id=select.value;
+ if(!Number.isInteger(index)||index<0||index>=6)return;
+ const previous=[...state.party];
+ if(!id){
+  if(index>=previous.length)return;
+  if(previous.length<=1){toast('最低1人は編成してな');render();return}
+  previous.splice(index,1);
+ }else{
+  const c=char(id);
+  if(!c||(!state.summonedCharacters.includes(id)&&protagonistPool.some(p=>p.id===id))){toast('未所持のキャラクターやで');render();return}
+  const existing=previous.indexOf(id);
+  if(existing===index)return;
+  if(existing>=0){
+   if(index<previous.length)[previous[existing],previous[index]]=[previous[index],previous[existing]];
+   else{previous.splice(existing,1);previous.push(id)}
+  }else if(index<previous.length){
+   previous[index]=id;
+  }else{
+   if(index>previous.length){toast('先に手前の枠を埋めてな');render();return}
+   previous.push(id);
+  }
+ }
+ state.party=previous.slice(0,6);
+ eptaFormationSync();
+ resetBattle();
+ toast('編成を更新したで');
+});
 const eptaFormationOldBattle=battle;
 battle=function(){
  eptaFormationSync();
