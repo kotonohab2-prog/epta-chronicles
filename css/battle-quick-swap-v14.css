@@ -1,0 +1,16 @@
+/* Front-only battle and 0.5s swap animation */
+.epta-quick-swap-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:#122b40;border-top:1px solid #e7c58b33;border-bottom:1px solid #e7c58b33;font-size:12px}
+.epta-quick-swap-bar small{display:block;color:var(--muted);font-size:10px;margin-top:4px}
+.epta-quick-swap-bar button{white-space:nowrap}
+.epta-swap-backdrop{position:fixed;inset:0;z-index:60;background:#030b16c9;display:flex;align-items:center;justify-content:center;padding:15px}
+.epta-swap-dialog{width:min(520px,96vw);max-height:85svh;overflow:auto;background:linear-gradient(155deg,#203c58,#101e32);border:1px solid #d4b47c;border-radius:15px;padding:17px;box-shadow:0 20px 70px #000a}
+.epta-swap-head{display:flex;justify-content:space-between;align-items:center;gap:12px}.epta-swap-head h2{font-size:17px;color:#f3d69c;margin:0}.epta-swap-head button{border:0;background:transparent;font-size:24px}.epta-swap-dialog p{font-size:12px;color:#c7d7e7;line-height:1.6}
+.epta-swap-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0}
+.epta-swap-card{display:flex;align-items:center;flex-direction:column;gap:5px;min-width:0;border:1px solid #d7b67b77;border-radius:10px;background:#28415e;padding:12px 7px}.epta-swap-card:hover{border-color:#ffe09b;background:#365573}.epta-swap-card img{width:72px;height:83px;object-fit:contain}.epta-swap-card>span:first-child{font-size:40px}.epta-swap-card b{font-size:13px}.epta-swap-card small{font-size:10px;color:#b7c9dc}.epta-swap-card span:last-child{color:#f0d69c;font-size:11px}
+.epta-swap-flash{position:fixed;inset:0;z-index:70;display:grid;place-items:center;pointer-events:none;background:radial-gradient(circle,#d7b06a55,transparent 65%);animation:epta-swap-bg .52s ease-out both}
+.epta-swap-flash-inner{display:flex;align-items:center;flex-direction:column;gap:7px;padding:20px 35px;border-radius:16px;background:#182b42e8;border:1px solid #f1d396;color:#f7dfb0;animation:epta-swap-pop .52s ease-in-out both;box-shadow:0 0 45px #e7c58b55}
+.epta-swap-flash-inner span{font-size:35px}.epta-swap-flash-inner b{font-size:17px}.epta-swap-flash-inner small{font-size:12px}
+@keyframes epta-swap-bg{0%{opacity:0}25%{opacity:1}70%{opacity:1}100%{opacity:0}}
+@keyframes epta-swap-pop{0%{opacity:0;transform:translateY(16px) scale(.88)}35%{opacity:1;transform:translateY(0) scale(1.05)}70%{opacity:1;transform:scale(1)}100%{opacity:0;transform:translateY(-12px) scale(1.02)}}
+@media(prefers-reduced-motion:reduce){.epta-swap-flash,.epta-swap-flash-inner{animation:none}.epta-swap-flash{opacity:.85}}
+@media(max-width:480px){.epta-swap-dialog{padding:12px}.epta-swap-options{gap:7px}.epta-quick-swap-bar{padding:10px}}
