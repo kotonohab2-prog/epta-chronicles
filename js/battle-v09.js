@@ -10,7 +10,7 @@ function battle(){
   const heroArt=c=>{
     const protagonist=protagonistPool.find(p=>p.id===c.id);
     if(!protagonist)return '<span class="hero-emoji">'+c.icon+'</span>';
-    return '<img class="battle-portrait" src="'+protagonist.portrait+'" alt="'+c.name+'の立ち絵" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="hero-emoji" hidden>'+c.icon+'</span>';
+    return '<img class="battle-portrait" src="'+protagonist.id+'-battle.webp" alt="'+c.name+'のミニキャラ" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="hero-emoji" hidden>'+c.icon+'</span>';
   };
   return `${head("冒険・バトル","マギ大陸・翡翠の森 — ターン制コマンドバトル")}
   <section class="anime-battle">
