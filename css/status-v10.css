@@ -1,0 +1,7 @@
+
+.epta-status-panel{margin-top:14px;padding:18px;border:1px solid rgba(255,255,255,.12);border-radius:14px;background:rgba(11,19,36,.65)}
+.epta-status-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07);font-size:13px}
+.epta-status-row>span{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+.epta-status-chip{display:inline-block;padding:4px 7px;border-radius:8px;background:rgba(214,173,101,.15);border:1px solid rgba(214,173,101,.3);font-size:11px}
+.epta-status-test{margin-top:14px}.epta-status-test summary{cursor:pointer;color:#d6ad65}
+.epta-status-test-buttons{display:flex;flex-wrap:wrap;gap:7px;margin:10px 0}
