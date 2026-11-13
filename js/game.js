@@ -85,7 +85,7 @@ function syncOwnedBattleCharacters(){
     state.characters.push({id:p.id,name:p.name,role:p.role,rarity:5,icon:t.icon,element:t.element,hp:t.hp,maxHp:t.hp,atk:t.atk,spd:t.spd,mp:t.mp,maxMp:t.mp,defenseRank:t.defenseRank,magicRank:t.magicRank,guarding:false,statusEffects:[]});
   }
   // 古いセーブや重複・未所持の編成を安全に正規化
-  state.party=[...new Set((Array.isArray(state.party)?state.party:[]).filter(id=>!!char(id)&&(!protagonistPool.some(p=>p.id===id)||state.summonedCharacters.includes(id))))].slice(0,4);
+  state.party=[...new Set((Array.isArray(state.party)?state.party:[]).filter(id=>!!char(id)&&(!protagonistPool.some(p=>p.id===id)||state.summonedCharacters.includes(id))))].slice(0,6);
   if(!state.party.length){const starter=state.characters.find(c=>!protagonistPool.some(p=>p.id===c.id));if(starter)state.party=[starter.id]}
 }
 function updateParty(id,add){
@@ -94,7 +94,7 @@ function updateParty(id,add){
   if(!c)return;
   if(add){
     if(state.party.includes(id))return;
-    if(state.party.length>=4){toast("編成できるのは4人までやで");return}
+    if(state.party.length>=6){toast("編成できるのは6人までやで");return}
     state.party.push(id);
   }else{
     if(!state.party.includes(id))return;
@@ -184,11 +184,11 @@ function showCharacterDetail(id){
 }
 function party(){
   const roster=state.characters.filter(c=>c&&(!protagonistPool.some(p=>p.id===c.id)||state.summonedCharacters.includes(c.id)));
-  const slots=Array.from({length:4},(_,i)=>state.party[i]?char(state.party[i]):null);
+  const slots=Array.from({length:6},(_,i)=>state.party[i]?char(state.party[i]):null);
   const portrait=c=>{const p=protagonistPool.find(x=>x.id===c.id);return p?'<img src="'+p.portrait+'" alt="" style="width:66px;height:82px;object-fit:contain" onerror="this.style.display=\'none\'">':'<span style="font-size:34px">'+c.icon+'</span>'};
-  return head("パーティ編成","召喚した仲間を最大4人まで編成できます。変更は自動保存されます。")+
-  '<section class="card"><h2>出撃メンバー（'+state.party.length+'/4）</h2><div class="party-slot-grid">'+slots.map((c,i)=>'<div class="party-slot"><small>SLOT '+(i+1)+'</small>'+(c?portrait(c)+'<b>'+c.name+'</b><small>HP '+c.maxHp+' / ATK '+c.atk+'</small><button class="choice" data-action="party-detail" data-id="'+c.id+'">詳細</button><button class="choice" data-action="party-remove" data-id="'+c.id+'">外す</button>':'<span class="party-empty">＋ 空き枠</span>')+'</div>').join('')+'</div><p class="muted">出撃メンバーは最低1人必要です。編成変更時は進行中の戦闘が最初からになります。</p></section>'+
-  '<section class="card" style="margin-top:14px"><h2>所持キャラクター</h2><div class="party-roster">'+roster.map(c=>{const selected=state.party.includes(c.id);return '<article class="party-roster-card">'+portrait(c)+'<div><b>'+c.name+' <span class="pill">★'+c.rarity+'</span></b><p class="muted">'+c.role+' / HP '+c.maxHp+' / ATK '+c.atk+' / SPD '+c.spd+'</p></div><button class="choice" data-action="party-detail" data-id="'+c.id+'">詳細</button><button class="btn" data-action="'+(selected?'party-remove':'party-add')+'" data-id="'+c.id+'" '+(!selected&&state.party.length>=4?'disabled':'')+'>'+(selected?'編成解除':'編成する')+'</button></article>'}).join('')+'</div></section>';
+  return head("パーティ編成","召喚した仲間を最大6人（前衛4人・後衛2人）まで編成できます。変更は自動保存されます。")+
+  '<section class="card"><h2>出撃メンバー（'+state.party.length+'/6）</h2><div class="party-slot-grid">'+slots.map((c,i)=>'<div class="party-slot"><small>SLOT '+(i+1)+'</small>'+(c?portrait(c)+'<b>'+c.name+'</b><small>HP '+c.maxHp+' / ATK '+c.atk+'</small><button class="choice" data-action="party-detail" data-id="'+c.id+'">詳細</button><button class="choice" data-action="party-remove" data-id="'+c.id+'">外す</button>':'<span class="party-empty">＋ 空き枠</span>')+'</div>').join('')+'</div><p class="muted">出撃メンバーは最低1人必要です。編成変更時は進行中の戦闘が最初からになります。</p></section>'+
+  '<section class="card" style="margin-top:14px"><h2>所持キャラクター</h2><div class="party-roster">'+roster.map(c=>{const selected=state.party.includes(c.id);return '<article class="party-roster-card">'+portrait(c)+'<div><b>'+c.name+' <span class="pill">★'+c.rarity+'</span></b><p class="muted">'+c.role+' / HP '+c.maxHp+' / ATK '+c.atk+' / SPD '+c.spd+'</p></div><button class="choice" data-action="party-detail" data-id="'+c.id+'">詳細</button><button class="btn" data-action="'+(selected?'party-remove':'party-add')+'" data-id="'+c.id+'" '+(!selected&&state.party.length>=6?'disabled':'')+'>'+(selected?'編成解除':'編成する')+'</button></article>'}).join('')+'</div></section>';
 }
 function battle(){
   const enemy=state.enemy;
@@ -302,7 +302,7 @@ function setBackline(actor,backline){
   actor.backline=!!backline;
   if(backline){actor.buffs=[];actor.debuffs=[]}
 }
-function activeParty(){return state.party.map(char).filter(c=>c&&!c.backline&&c.hp>0)}
+function activeParty(){return state.party.slice(0,4).map(char).filter(c=>c&&!c.backline&&c.hp>0)}
 function applyRoundEndStatuses(){
   for(const actor of [...state.party.map(char).filter(Boolean),state.enemy]){
     if(actor.hp<=0||actor.backline)continue;
@@ -334,7 +334,7 @@ function beginBattleRound(){
 }
 function skipUnavailableInputs(){
   const flow=state.battleFlow;
-  while(flow.inputIndex<state.party.length){
+  while(flow.inputIndex<Math.min(4,state.party.length)){
     const actor=char(state.party[flow.inputIndex]);
     if(!actor||actor.hp<=0||actor.backline){flow.inputIndex++;continue}
     if(statusList(actor).some(s=>s.id==="flinch")){
@@ -360,7 +360,7 @@ function backBattleInput(){
 }
 function endBattleIfNeeded(){
   if(state.enemy.hp<=0){win();return true}
-  if(!activeParty().length){state.battleFlow.finished=true;state.battleFlow.phase="finished";addLog("仲間は全員倒れてしまった……");return true}
+  if(!state.party.map(char).some(c=>c&&c.hp>0)){state.battleFlow.finished=true;state.battleFlow.phase="finished";addLog("仲間は全員倒れてしまった……");return true}
   return false;
 }
 function executeBattleRound(){
@@ -425,7 +425,7 @@ function doBattleAction(action){
   flow.commands.push({id,action,priority:0});
   flow.inputIndex++;
   skipUnavailableInputs();
-  if(flow.inputIndex>=state.party.length)executeBattleRound();
+  if(flow.inputIndex>=Math.min(4,state.party.length))executeBattleRound();
   render();
 }
 function resetBattle(){
