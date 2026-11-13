@@ -1,0 +1,6 @@
+/* v1.7: compact, always-visible top-right battle swap button */
+.anime-battle .battle-topline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.anime-battle .battle-topline .epta-header-swap{margin-left:auto;display:inline-flex}
+.anime-battle .battle-topline .epta-swap-top-button{appearance:none;display:inline-flex;align-items:center;justify-content:center;padding:6px 12px;min-height:30px;background:#263f5b;border:1px solid #d7b67b;border-radius:8px;color:#f3d69c;font-size:12px;font-weight:700;line-height:1.2;letter-spacing:0;cursor:pointer}
+.anime-battle .battle-topline .epta-swap-top-button:hover:not(:disabled){background:#3a5875}
+.anime-battle .battle-topline .epta-swap-top-button:disabled{opacity:.45;cursor:not-allowed}
