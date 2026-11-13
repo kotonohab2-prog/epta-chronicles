@@ -1,0 +1,6 @@
+/* v1.5 — stable 2x2 battlefield and visible swap effect */
+.battle-stage .battle-formation{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(120px,1fr));max-width:520px;margin:0 auto;width:100%}
+.battle-stage{min-height:340px}
+.epta-swap-flash-v15{z-index:99999;animation:epta-swap-bg .65s ease-out both}
+.epta-swap-flash-v15 .epta-swap-flash-inner{animation:epta-swap-pop .65s ease-in-out both}
+@media(max-width:760px){.battle-stage .battle-formation{grid-template-rows:repeat(2,minmax(90px,1fr))}.battle-stage{min-height:280px}}
