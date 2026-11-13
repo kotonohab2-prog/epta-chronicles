@@ -7,12 +7,17 @@ function battle(){
   const order=state.party.map(id=>state.battleFlow.commands?.find(x=>x.id===id)).filter(Boolean);
   const canAct=!!activeChar&&enemy.hp>0&&!state.battleWon;
   const pct=(v,m)=>Math.max(0,Math.min(100,v/m*100));
+  const heroArt=c=>{
+    const protagonist=protagonistPool.find(p=>p.id===c.id);
+    if(!protagonist)return '<span class="hero-emoji">'+c.icon+'</span>';
+    return '<img class="battle-portrait" src="'+protagonist.portrait+'" alt="'+c.name+'の立ち絵" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span class="hero-emoji" hidden>'+c.icon+'</span>';
+  };
   return `${head("冒険・バトル","マギ大陸・翡翠の森 — ターン制コマンドバトル")}
   <section class="anime-battle">
     <div class="battle-topline"><span><i></i> BATTLE AREA / MAGI CONTINENT</span><b>TURN <strong>${state.turn}</strong></b></div>
     <div class="battle-stage">
       <div class="battle-side allies-side"><div class="side-label">YOUR PARTY<small>味方</small></div>
-        <div class="battle-formation">${members.map((c,i)=>`<div class="battle-hero hero-${i+1} ${c.hp<=0?'is-down':''}"><div class="hero-orbit"></div><div class="hero-sprite">${c.icon}</div><div class="hero-nameplate"><b>${c.name}</b><small>${c.role} / ${c.element}</small></div><div class="hero-hp"><span style="width:${pct(c.hp,c.maxHp)}%"></span></div></div>`).join("")}
+        <div class="battle-formation">${members.map((c,i)=>`<div class="battle-hero hero-${i+1} ${c.hp<=0?'is-down':''}"><div class="hero-orbit"></div><div class="hero-sprite ${protagonistPool.some(p=>p.id===c.id)?'has-portrait':''}">${heroArt(c)}</div><div class="hero-nameplate"><b>${c.name}</b><small>${c.role} / ${c.element}</small></div><div class="hero-hp"><span style="width:${pct(c.hp,c.maxHp)}%"></span></div></div>`).join("")}
         ${members.length<4?'<div class="battle-hero empty-hero"><div class="empty-plus">＋</div><b>空き枠</b><small>仲間を編成できます</small></div>':''}</div>
       </div>
       <div class="battle-mid-mark">VS</div>
