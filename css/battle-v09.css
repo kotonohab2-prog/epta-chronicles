@@ -19,3 +19,22 @@
 @keyframes eptaHeroFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}@keyframes eptaEnemyBob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-7px) scale(1.035)}}
 @media(max-width:760px){.battle-stage{min-height:260px;grid-template-columns:1fr 22px 1fr}.battle-side{padding:12px 8px}.battle-formation{gap:4px;grid-template-rows:repeat(2,minmax(82px,1fr))}.hero-sprite{width:48px;height:56px;font-size:36px}.hero-orbit{width:60px;bottom:27px}.hero-nameplate b{font-size:10px}.hero-nameplate small{font-size:7px}.enemy-sprite{font-size:66px}.enemy-rings{width:110px;height:75px}.battle-lower{grid-template-columns:1fr}.battle-status-list{grid-template-columns:repeat(2,minmax(0,1fr))}.command-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.battle-command{min-height:68px}.battle-log-panel{grid-template-columns:1fr}.battle-log-panel .battle-panel-heading{border-bottom:1px solid rgba(142,177,208,.13);padding-bottom:8px}}
 @media(max-width:420px){.command-grid{gap:4px}.battle-command{padding:6px 2px}.battle-command small{font-size:7px}.battle-status-list{grid-template-columns:1fr 1fr}.battle-stage{min-height:235px}}
+
+
+/* v0.9.1 — playable protagonist portraits in the battle formation */
+.battle-hero .hero-sprite.has-portrait{width:100%;height:112px;max-width:125px;font-size:0;overflow:visible;align-items:end;justify-items:center}
+.battle-hero .battle-portrait{display:block;width:100%;height:112px;object-fit:contain;object-position:center bottom;filter:drop-shadow(0 7px 8px rgba(0,0,0,.6))}
+.battle-hero .battle-portrait[hidden],.battle-hero .hero-emoji[hidden]{display:none}
+.battle-hero .hero-emoji{font-size:48px}
+.battle-hero .hero-sprite.has-portrait .hero-emoji:not([hidden]){font-size:48px}
+.battle-hero:has(.battle-portrait) .hero-orbit{bottom:30px}
+.battle-hero .hero-nameplate,.battle-hero .hero-hp{flex-shrink:0}
+@media(max-width:760px){
+  .battle-hero .hero-sprite.has-portrait,.battle-hero .battle-portrait{height:86px}
+  .battle-hero .hero-sprite.has-portrait{max-width:90px}
+  .battle-hero .hero-emoji,.battle-hero .hero-sprite.has-portrait .hero-emoji:not([hidden]){font-size:36px}
+}
+@media(max-width:420px){
+  .battle-hero .hero-sprite.has-portrait,.battle-hero .battle-portrait{height:74px}
+  .battle-hero .hero-sprite.has-portrait{max-width:70px}
+}
