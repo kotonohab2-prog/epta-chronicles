@@ -34,8 +34,22 @@ if(!Array.isArray(state.summonedCharacters)) state.summonedCharacters=[];
 if(!Number.isInteger(state.pityCount)) state.pityCount = saved ? 70 : 0;
 state.pityCount = Math.max(0, Math.min(79, state.pityCount));
 // SPDは暫定値。既存のセーブにも適用する
+// 試作キャラクターの防御・魔力ランク（本設定が決まるまでの仮値）
+const demoGuardRanks={riku:{defense:"B",magic:"C"},mira:{defense:"D",magic:"A"},sena:{defense:"A",magic:"B"}};
+const GUARD_REDUCTION={
+  D:20,C:30,B:40,
+  A:45,"A+":47,"A++":49,"A+++":51,
+  AA:54,"AA+":56,"AA++":58,"AA+++":60,
+  AAA:63,"AAA+":65,"AAA++":67,"AAA+++":69,
+  S:72,"S+":74,"S++":76,"S+++":78,
+  SS:81,"SS+":83,"SS++":85,"SS+++":87,SSS:90
+};
+function guardReduction(actor,damageType="physical"){
+  const rank=damageType==="magic"?actor.magicRank:actor.defenseRank;
+  return GUARD_REDUCTION[rank]??0;
+}
 const baseSpd={riku:110,mira:85,sena:65};
-state.characters.forEach(c=>{if(!Number.isFinite(c.spd)) c.spd=baseSpd[c.id]||75; if(!Number.isFinite(c.maxMp)) c.maxMp=30; if(!Number.isFinite(c.mp)) c.mp=c.maxMp;});
+state.characters.forEach(c=>{if(!Number.isFinite(c.spd)) c.spd=baseSpd[c.id]||75; if(!Number.isFinite(c.maxMp)) c.maxMp=30; if(!Number.isFinite(c.mp)) c.mp=c.maxMp; const ranks=demoGuardRanks[c.id]; if(ranks){if(!c.defenseRank)c.defenseRank=ranks.defense;if(!c.magicRank)c.magicRank=ranks.magic;} if(typeof c.guarding!=="boolean")c.guarding=false;});
 if(!Number.isFinite(state.enemy.spd)) state.enemy.spd=90;
 if(!state.battleFlow || !Array.isArray(state.battleFlow.queue)) state.battleFlow={queue:[],index:0,round:0,finished:false};
 const protagonistPool=[
@@ -216,7 +230,6 @@ function beginBattleRound(){
   entries.push({id:"enemy",spd:state.enemy.spd||0,tie:Math.random()});
   entries.sort((a,b)=>b.spd-a.spd||a.tie-b.tie);
   state.battleFlow={queue:entries.map(x=>x.id),index:0,round:state.turn,finished:false};
-  state.party.map(char).filter(Boolean).forEach(c=>c.guarding=false);
   addLog("ターン"+state.turn+"：素早さ順で行動！");
 }
 function currentBattleActor(){
@@ -249,7 +262,9 @@ function enemyTurn(){
   const living=state.party.map(char).filter(c=>c&&c.hp>0);
   if(!living.length)return;
   const target=living[Math.floor(Math.random()*living.length)];
-  const damage=Math.max(1,Math.round(state.enemy.atk*(target.guarding?0.5:1)));
+  // 現在の試作敵は物理攻撃。魔法攻撃の実装時は "magic" を指定する。
+  const reduction=target.guarding?guardReduction(target,"physical"):0;
+  const damage=Math.max(1,Math.round(state.enemy.atk*(1-reduction/100)));
   target.hp=Math.max(0,target.hp-damage);
   addLog(`${state.enemy.name}の攻撃！ ${target.name}に${damage}ダメージ。`);
 }
@@ -261,7 +276,11 @@ function doBattleAction(action){
   if(id==="enemy"){enemyTurn();advanceBattle();id=currentBattleActor()}
   if(!id||id==="enemy"||!battleAlive(id)){render();return}
   const actor=char(id);
+  // 前回の防御は、このキャラクターが次の行動を開始した時点で終了する。
+  // MP不足の入力では行動しないため、解除も行わない。
   if(action==="skill"&&actor.mp<10){toast("MPが足りません");render();return}
+  if(action==="heal"&&actor.mp<8){toast("MPが足りません");render();return}
+  actor.guarding=false;
   if(action==="attack"||action==="skill"){
     const damage=action==="skill"?Math.round(actor.atk*1.55):actor.atk;
     if(action==="skill")actor.mp-=10;
@@ -272,7 +291,7 @@ function doBattleAction(action){
     actor.mp-=8;const healed=Math.min(actor.maxHp-actor.hp,Math.max(20,Math.round(actor.maxHp*0.35)));
     actor.hp+=healed;addLog(`${actor.name}はHPを${healed}回復した。`);
   }else if(action==="guard"){
-    actor.guarding=true;addLog(`${actor.name}は防御態勢を取った！`);
+    actor.guarding=true;addLog(`${actor.name}は防御態勢を取った！ 物理${guardReduction(actor,"physical")}%・魔法${guardReduction(actor,"magic")}%軽減。`);
   }else return;
   if(state.enemy.hp<=0)win();else advanceBattle();
   render();
