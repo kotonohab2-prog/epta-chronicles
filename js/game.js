@@ -51,7 +51,7 @@ function guardReduction(actor,damageType="physical"){
 const baseSpd={riku:110,mira:85,sena:65};
 state.characters.forEach(c=>{if(!Number.isFinite(c.spd)) c.spd=baseSpd[c.id]||75; if(!Number.isFinite(c.maxMp)) c.maxMp=30; if(!Number.isFinite(c.mp)) c.mp=c.maxMp; const ranks=demoGuardRanks[c.id]; if(ranks){if(!c.defenseRank)c.defenseRank=ranks.defense;if(!c.magicRank)c.magicRank=ranks.magic;} if(typeof c.guarding!=="boolean")c.guarding=false;});
 if(!Number.isFinite(state.enemy.spd)) state.enemy.spd=90;
-if(!state.battleFlow || !Array.isArray(state.battleFlow.queue)) state.battleFlow={queue:[],index:0,round:0,finished:false};
+if(!state.battleFlow || !Array.isArray(state.battleFlow.commands)) state.battleFlow={queue:[],commands:[],index:0,round:0,phase:"input",inputIndex:0,finished:false};
 const protagonistPool=[
   {id:"kaisei",name:"松永海聖",role:"剣士",rarity:5,portrait:"kaisei-portrait.webp"},
   {id:"sho",name:"石原翔",role:"ライダー",rarity:5,portrait:"sho-portrait.webp"},
@@ -224,93 +224,165 @@ function win(){
 }
 function battleActor(key){return key==="enemy"?state.enemy:char(key)}
 function battleAlive(key){const c=battleActor(key);return !!c&&c.hp>0}
+
+const STATUS_RULES={
+  poison:{name:"毒",icon:"☠",kind:"damage"},
+  burn:{name:"火傷",icon:"🔥",kind:"damage"},
+  flinch:{name:"怯み",icon:"✦",kind:"skip"}
+};
+// 継続ダメージ率・持続ターン数は未確定。デモでの付与は行わず、将来のスキル実装時に指定する。
+function statusList(actor){if(!Array.isArray(actor.statusEffects))actor.statusEffects=[];return actor.statusEffects}
+function addStatus(actor,id,rounds=null){
+  if(!STATUS_RULES[id]||actor.hp<=0)return false;
+  const list=statusList(actor);
+  if(list.some(s=>s.id===id))return false;
+  list.push({id,remaining:Number.isInteger(rounds)?rounds:null});
+  return true;
+}
+function clearOnKO(actor){
+  actor.guarding=false;actor.buffs=[];actor.debuffs=[];actor.statusEffects=[];
+}
+function knockOut(actor){actor.hp=0;clearOnKO(actor)}
+function setBackline(actor,backline){
+  actor.backline=!!backline;
+  if(backline){actor.buffs=[];actor.debuffs=[]}
+}
+function activeParty(){return state.party.map(char).filter(c=>c&&!c.backline&&c.hp>0)}
+function applyRoundEndStatuses(){
+  for(const actor of [...state.party.map(char).filter(Boolean),state.enemy]){
+    if(actor.hp<=0||actor.backline)continue;
+    for(const status of [...statusList(actor)]){
+      if(status.id==="poison"||status.id==="burn"){
+        // ダメージ量は未確定。effect.damageが設定された場合のみ適用する。
+        const damage=Math.max(0,Math.floor(Number(status.damage)||0));
+        if(damage){actor.hp=Math.max(0,actor.hp-damage);addLog(`${actor.name}は${STATUS_RULES[status.id].name}で${damage}ダメージ！`)}
+        if(actor.hp<=0){knockOut(actor);addLog(`${actor.name}は戦闘不能になった！`);break}
+      }
+      if(Number.isInteger(status.remaining)){
+        status.remaining--;
+        if(status.remaining<=0){actor.statusEffects=actor.statusEffects.filter(s=>s!==status);addLog(`${actor.name}の${STATUS_RULES[status.id].name}が治った。`)}
+      }
+    }
+  }
+}
+function ensureFlow(){
+  if(!state.battleFlow||!Array.isArray(state.battleFlow.queue)||!Array.isArray(state.battleFlow.commands)){
+    state.battleFlow={queue:[],commands:[],index:0,round:0,phase:"input",inputIndex:0,finished:false};
+  }
+}
 function beginBattleRound(){
   if(state.enemy.hp<=0||state.battleWon)return;
-  const entries=state.party.filter(id=>battleAlive(id)).map(id=>({id,spd:battleActor(id).spd||0,tie:Math.random()}));
-  entries.push({id:"enemy",spd:state.enemy.spd||0,tie:Math.random()});
-  entries.sort((a,b)=>b.spd-a.spd||a.tie-b.tie);
-  state.battleFlow={queue:entries.map(x=>x.id),index:0,round:state.turn,finished:false};
-  addLog("ターン"+state.turn+"：素早さ順で行動！");
+  ensureFlow();
+  state.battleFlow={queue:[],commands:[],index:0,round:state.turn,phase:"input",inputIndex:0,finished:false};
+  addLog(`ラウンド${state.turn}：味方の行動を選択してな！`);
+  skipUnavailableInputs();
+}
+function skipUnavailableInputs(){
+  const flow=state.battleFlow;
+  while(flow.inputIndex<state.party.length){
+    const actor=char(state.party[flow.inputIndex]);
+    if(!actor||actor.hp<=0||actor.backline){flow.inputIndex++;continue}
+    if(statusList(actor).some(s=>s.id==="flinch")){
+      flow.commands.push({id:actor.id,action:"flinch",priority:0});
+      flow.inputIndex++;continue;
+    }
+    break;
+  }
 }
 function currentBattleActor(){
-  if(!state.battleFlow || state.battleFlow.round!==state.turn)beginBattleRound();
-  return state.battleFlow.queue[state.battleFlow.index]||null;
+  ensureFlow();
+  if(state.battleFlow.round!==state.turn)beginBattleRound();
+  if(state.battleFlow.phase!=="input")return null;
+  skipUnavailableInputs();
+  return state.party[state.battleFlow.inputIndex]||null;
 }
-function advanceBattle(){
-  // 行動済みのキャラを飛ばし、次の味方まで敵の行動を自動処理
-  for(let safety=0;safety<30;safety++){
-    const flow=state.battleFlow;
-    if(flow.finished||state.enemy.hp<=0)return;
-    flow.index++;
-    if(flow.index>=flow.queue.length){
-      if(!state.party.some(id=>battleAlive(id))){flow.finished=true;addLog("仲間は全員倒れてしまった……");return}
-      state.turn++;beginBattleRound();
-      continue;
+function backBattleInput(){
+  const flow=state.battleFlow;
+  if(flow.phase!=="input"||!flow.commands.length)return;
+  const previous=flow.commands.pop();
+  flow.inputIndex=state.party.indexOf(previous.id);
+  render();
+}
+function endBattleIfNeeded(){
+  if(state.enemy.hp<=0){win();return true}
+  if(!activeParty().length){state.battleFlow.finished=true;state.battleFlow.phase="finished";addLog("仲間は全員倒れてしまった……");return true}
+  return false;
+}
+function executeBattleRound(){
+  const flow=state.battleFlow;
+  flow.phase="execute";
+  const entries=flow.commands.map(cmd=>({...cmd,spd:char(cmd.id)?.spd||0,tie:Math.random()}));
+  entries.push({id:"enemy",action:"enemy",priority:0,spd:state.enemy.spd||0,tie:Math.random()});
+  entries.sort((a,b)=>b.priority-a.priority||b.spd-a.spd||a.tie-b.tie);
+  flow.queue=entries.map(x=>x.id);
+  for(const entry of entries){
+    if(endBattleIfNeeded())break;
+    if(entry.id==="enemy"){enemyTurn();continue}
+    const actor=char(entry.id);
+    if(!actor||actor.hp<=0||actor.backline)continue;
+    const flinch=statusList(actor).find(s=>s.id==="flinch");
+    if(flinch){actor.statusEffects=actor.statusEffects.filter(s=>s!==flinch);addLog(`${actor.name}は怯んで動けない！`);continue}
+    if(entry.action==="flinch")continue;
+    actor.guarding=false;
+    if(entry.action==="attack"||entry.action==="skill"){
+      const damage=entry.action==="skill"?Math.round(actor.atk*1.55):actor.atk;
+      if(entry.action==="skill"){if(actor.mp<10)continue;actor.mp-=10}
+      // 敵が複数になった場合は実行直前に生存対象へ再抽選する
+      state.enemy.hp=Math.max(0,state.enemy.hp-damage);
+      addLog(`${actor.name}の${entry.action==="skill"?"スキル":"攻撃"}！ ${damage}ダメージ。`);
+    }else if(entry.action==="heal"){
+      if(actor.mp<8)continue;
+      actor.mp-=8;
+      const healed=Math.min(actor.maxHp-actor.hp,Math.max(20,Math.round(actor.maxHp*.35)));
+      actor.hp+=healed;addLog(`${actor.name}はHPを${healed}回復した。`);
+    }else if(entry.action==="guard"){
+      actor.guarding=true;addLog(`${actor.name}は防御態勢！ 物理${guardReduction(actor,"physical")}%・魔法${guardReduction(actor,"magic")}%軽減。`);
     }
-    const id=flow.queue[flow.index];
-    if(!battleAlive(id))continue;
-    if(id==="enemy"){
-      enemyTurn();
-      if(!state.party.some(id=>battleAlive(id))){flow.finished=true;addLog("仲間は全員倒れてしまった……");return}
-      continue;
-    }
-    return;
   }
+  if(endBattleIfNeeded())return;
+  applyRoundEndStatuses();
+  if(endBattleIfNeeded())return;
+  state.turn++;
+  beginBattleRound();
 }
 function enemyTurn(){
   if(state.enemy.hp<=0)return;
-  const living=state.party.map(char).filter(c=>c&&c.hp>0);
+  const living=activeParty();
   if(!living.length)return;
   const target=living[Math.floor(Math.random()*living.length)];
-  // 現在の試作敵は物理攻撃。魔法攻撃の実装時は "magic" を指定する。
   const reduction=target.guarding?guardReduction(target,"physical"):0;
   const damage=Math.max(1,Math.round(state.enemy.atk*(1-reduction/100)));
   target.hp=Math.max(0,target.hp-damage);
   addLog(`${state.enemy.name}の攻撃！ ${target.name}に${damage}ダメージ。`);
+  if(target.hp<=0){knockOut(target);addLog(`${target.name}は戦闘不能になった！`)}
 }
 function doBattleAction(action){
   if(state.enemy.hp<=0||state.battleWon){toast("戦闘は終了しているで");return}
-  if(state.battleFlow.finished){toast("再挑戦してな");return}
-  let id=currentBattleActor();
-  // 敵が先攻なら、最初の入力時に敵の行動を処理する
-  if(id==="enemy"){enemyTurn();advanceBattle();id=currentBattleActor()}
-  if(!id||id==="enemy"||!battleAlive(id)){render();return}
+  ensureBattleReady();
+  const flow=state.battleFlow;
+  if(flow.finished)return;
+  const id=currentBattleActor();
+  if(!id)return;
   const actor=char(id);
-  // 前回の防御は、このキャラクターが次の行動を開始した時点で終了する。
-  // MP不足の入力では行動しないため、解除も行わない。
-  if(action==="skill"&&actor.mp<10){toast("MPが足りません");render();return}
-  if(action==="heal"&&actor.mp<8){toast("MPが足りません");render();return}
-  actor.guarding=false;
-  if(action==="attack"||action==="skill"){
-    const damage=action==="skill"?Math.round(actor.atk*1.55):actor.atk;
-    if(action==="skill")actor.mp-=10;
-    state.enemy.hp=Math.max(0,state.enemy.hp-damage);
-    addLog(`${actor.name}の${action==="skill"?"スキル":"攻撃"}！ ${damage}ダメージ。`);
-  }else if(action==="heal"){
-    if(actor.mp<8){toast("MPが足りません");return}
-    actor.mp-=8;const healed=Math.min(actor.maxHp-actor.hp,Math.max(20,Math.round(actor.maxHp*0.35)));
-    actor.hp+=healed;addLog(`${actor.name}はHPを${healed}回復した。`);
-  }else if(action==="guard"){
-    actor.guarding=true;addLog(`${actor.name}は防御態勢を取った！ 物理${guardReduction(actor,"physical")}%・魔法${guardReduction(actor,"magic")}%軽減。`);
-  }else return;
-  if(state.enemy.hp<=0)win();else advanceBattle();
+  if(action==="skill"&&actor.mp<10){toast("MPが足りません");return}
+  if(action==="heal"&&actor.mp<8){toast("MPが足りません");return}
+  if(!["attack","skill","heal","guard"].includes(action))return;
+  flow.commands.push({id,action,priority:0});
+  flow.inputIndex++;
+  skipUnavailableInputs();
+  if(flow.inputIndex>=state.party.length)executeBattleRound();
   render();
 }
 function resetBattle(){
-  state.enemy.hp=state.enemy.maxHp;state.battleWon=false;state.turn=1;
-  state.party.map(char).filter(Boolean).forEach(c=>{c.hp=c.maxHp;c.mp=c.maxMp;c.guarding=false});
+  state.enemy.hp=state.enemy.maxHp;state.enemy.statusEffects=[];state.battleWon=false;state.turn=1;
+  state.party.map(char).filter(Boolean).forEach(c=>{c.hp=c.maxHp;c.mp=c.maxMp;c.guarding=false;c.statusEffects=[];c.buffs=[];c.debuffs=[];c.backline=false});
   state.log=["森のスライムが現れた！"];
-  beginBattleRound();
-  // 敵先攻を含め、次の味方入力まで進める
-  if(currentBattleActor()==="enemy"){enemyTurn();advanceBattle()}
-  render();
+  beginBattleRound();render();
 }
 function ensureBattleReady(){
+  ensureFlow();
   if(state.enemy.hp<=0||state.battleWon||state.battleFlow.finished)return;
-  if(state.battleFlow.round!==state.turn||!state.battleFlow.queue.length){
-    beginBattleRound();
-    if(currentBattleActor()==="enemy"){enemyTurn();advanceBattle()}
-  }
+  if(state.battleFlow.round!==state.turn||!state.battleFlow.queue.length&&state.battleFlow.phase!=="input")beginBattleRound();
 }
 function summon(count){
   const cost=count*100;
@@ -341,7 +413,7 @@ document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if
 if(a==="go-battle")setView("battle");
 if(a==="shuffle-scene"){const options=continentScenes.filter(s=>s.id!==currentScene.id);currentScene=options[Math.floor(Math.random()*options.length)];render();toast(`${currentScene.name}の風景に切り替えたで`)}
 if(["attack","skill","guard","heal"].includes(a))doBattleAction(a);
-if(a==="reset-battle")resetBattle()
+if(a==="reset-battle")resetBattle();if(a==="battle-back")backBattleInput()
 if(a==="summon")summon(1);if(a==="summon10")summon(10);                                      
 if(a==="buy-gems"){
   const pack=gemPacks.find(p=>p.id===b.dataset.pack);
