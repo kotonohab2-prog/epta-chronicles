@@ -1,0 +1,7 @@
+/* EPTA CHRONICLES — small battle header swap control v1.6 */
+.anime-battle .battle-topline{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.anime-battle .battle-topline>.epta-header-swap{margin-left:auto;display:inline-flex;align-items:center}
+.anime-battle .battle-topline>.epta-header-swap [data-epta-open-swap]{display:inline-flex;align-items:center;justify-content:center;min-height:30px;padding:5px 11px;font-size:12px;line-height:1.2;border-radius:8px;border:1px solid #d9b878;color:#f1d59e;background:#243d58;letter-spacing:0;white-space:nowrap;cursor:pointer}
+.anime-battle .battle-topline>.epta-header-swap [data-epta-open-swap]:hover:not(:disabled){background:#365778;border-color:#ffe0a3}
+.anime-battle .battle-topline>.epta-header-swap [data-epta-open-swap]:disabled{opacity:.4;cursor:not-allowed}
+@media(max-width:480px){.anime-battle .battle-topline{gap:6px}.anime-battle .battle-topline>.epta-header-swap [data-epta-open-swap]{min-height:28px;padding:4px 9px;font-size:11px}}
