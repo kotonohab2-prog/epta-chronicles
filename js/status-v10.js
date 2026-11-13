@@ -99,9 +99,9 @@ function executeBattleRound(){
   if(!statusCanAct(actor,entry.action))continue;
   if(entry.action==="attack"||entry.action==="skill"){
    if(entry.action==="skill"){if(actor.mp<10)continue;actor.mp-=10}
-   const damage=statusDamage(actor,entry.action==="skill"?Math.round(actor.atk*1.55):actor.atk);
+   const damage=eptaClassDamage(actor,state.enemy,statusDamage(actor,entry.action==="skill"?Math.round(actor.atk*1.55):actor.atk));
    state.enemy.hp=Math.max(0,state.enemy.hp-damage);
-   addLog(actor.name+"の"+(entry.action==="skill"?"スキル":"攻撃")+"！ "+damage+"ダメージ。");
+   addLog(actor.name+"の"+(entry.action==="skill"?"スキル":"攻撃")+"！ "+damage+"ダメージ。"+eptaClassLabel(actor,state.enemy));
    if(statusList(state.enemy).some(s=>s.id==="freeze")&&actor.element==="炎")removeStatus(state.enemy,"freeze");
   }else if(entry.action==="heal"){
    if(actor.mp<8)continue;actor.mp-=8;
@@ -121,9 +121,9 @@ function enemyTurn(){
  const living=activeParty();if(!living.length)return;
  const target=living[Math.floor(Math.random()*living.length)];
  const reduction=target.guarding?guardReduction(target,"physical"):0;
- const damage=Math.max(1,Math.round(statusDamage(enemy,enemy.atk)*(1-reduction/100)));
+ const damage=eptaClassDamage(enemy,target,Math.max(1,Math.round(statusDamage(enemy,enemy.atk)*(1-reduction/100))));
  target.hp=Math.max(0,target.hp-damage);
- addLog(enemy.name+"の攻撃！ "+target.name+"に"+damage+"ダメージ。");
+ addLog(enemy.name+"の攻撃！ "+target.name+"に"+damage+"ダメージ。"+eptaClassLabel(enemy,target));
  if(target.hp<=0){knockOut(target);addLog(target.name+"は戦闘不能になった！")}
  if(statusList(target).some(s=>s.id==="freeze")&&enemy.element==="炎")removeStatus(target,"freeze");
 }
