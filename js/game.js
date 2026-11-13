@@ -70,6 +70,42 @@ const gemPacks=[
   {id:"large",name:"大容量パック",gems:3000,coins:5000,tag:"人気"},
   {id:"mega",name:"特大パック",gems:6500,coins:10000,tag:"たっぷり"}
 ];
+// 召喚済み主人公を戦闘キャラクターとして登録。数値は正式バランス決定までの暫定値。
+const protagonistBattleStats={
+  kaisei:{hp:165,atk:30,spd:105,mp:35,icon:"⚔️",element:"光",defenseRank:"B",magicRank:"C"},
+  sho:{hp:185,atk:29,spd:115,mp:30,icon:"🐎",element:"炎",defenseRank:"B",magicRank:"D"},
+  yuki:{hp:120,atk:38,spd:90,mp:55,icon:"🔮",element:"風",defenseRank:"D",magicRank:"A"},
+  shunki:{hp:135,atk:34,spd:120,mp:40,icon:"🎯",element:"風",defenseRank:"C",magicRank:"B"},
+  daiki:{hp:175,atk:32,spd:100,mp:35,icon:"🌸",element:"光",defenseRank:"A",magicRank:"C"}
+};
+function syncOwnedBattleCharacters(){
+  for(const p of protagonistPool){
+    if(!state.summonedCharacters.includes(p.id)||char(p.id))continue;
+    const t=protagonistBattleStats[p.id];
+    state.characters.push({id:p.id,name:p.name,role:p.role,rarity:5,icon:t.icon,element:t.element,hp:t.hp,maxHp:t.hp,atk:t.atk,spd:t.spd,mp:t.mp,maxMp:t.mp,defenseRank:t.defenseRank,magicRank:t.magicRank,guarding:false,statusEffects:[]});
+  }
+  // 古いセーブや重複・未所持の編成を安全に正規化
+  state.party=[...new Set((Array.isArray(state.party)?state.party:[]).filter(id=>!!char(id)&&(!protagonistPool.some(p=>p.id===id)||state.summonedCharacters.includes(id))))].slice(0,4);
+  if(!state.party.length){const starter=state.characters.find(c=>!protagonistPool.some(p=>p.id===c.id));if(starter)state.party=[starter.id]}
+}
+function updateParty(id,add){
+  syncOwnedBattleCharacters();
+  const c=char(id);
+  if(!c)return;
+  if(add){
+    if(state.party.includes(id))return;
+    if(state.party.length>=4){toast("編成できるのは4人までやで");return}
+    state.party.push(id);
+  }else{
+    if(!state.party.includes(id))return;
+    if(state.party.length<=1){toast("最低1人は編成してな");return}
+    state.party=state.party.filter(x=>x!==id);
+  }
+  resetBattle();
+  render();
+  toast(c.name+(add?"を編成したで":"を編成から外したで"));
+}
+syncOwnedBattleCharacters();
 function save(){localStorage.setItem("epta-save-v02",JSON.stringify(state));}
 function fmt(n){return n.toLocaleString("ja-JP")}
 function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.classList.remove("show"),1900)}
@@ -129,13 +165,14 @@ function home(){return `
   </div>
 </section>`}
 function party(){
-  const owned=protagonistPool.filter(p=>state.summonedCharacters.includes(p.id));
-  return `${head("キャラクター","仲間の情報を確認しよう。召喚で迎えた主人公はここに表示されます。")}
-  <div class="grid2">${state.characters.map(c=>`<article class="card char"><div class="portrait ${c.element==="炎"?"fire":c.element==="風"?"wind":"light"}">${c.icon}</div><div><h3>${c.name} <span class="pill">★${c.rarity}</span></h3><p>${c.role} · ${c.element}属性</p><p>HP ${c.hp}/${c.maxHp} · 攻撃 ${c.atk}</p><span class="pill">パーティー${state.party.includes(c.id)?"編成中":"未編成"}</span></div></article>`).join("")}</div>
-  <article class="card" style="margin-top:10px"><h3>召喚で迎えた主人公</h3>
-  ${owned.length?`<div class="grid2">${owned.map(p=>`<article class="card char"><img src="${p.portrait}" alt="${p.name}" style="width:92px;height:120px;object-fit:contain;object-position:center top;border-radius:9px"><div><h3>${p.name} <span class="pill">★5</span></h3><p>${p.role}</p><span class="pill">所持</span></div></article>`).join("")}</div>`:`<p class="muted">まだ主人公を召喚していません。召喚で迎えると、ここに表示されます。</p>`}
-  <h3 style="margin-top:16px">パーティー</h3><p class="muted">現在の試作編成：${state.party.map(id=>char(id)?.name).join(" / ")}</p><p class="muted">主人公5人の戦闘参加・編成機能は次の段階で実装します。</p></article>`;
-}function battle(){
+  const roster=state.characters.filter(c=>c&&(!protagonistPool.some(p=>p.id===c.id)||state.summonedCharacters.includes(c.id)));
+  const slots=Array.from({length:4},(_,i)=>state.party[i]?char(state.party[i]):null);
+  const portrait=c=>{const p=protagonistPool.find(x=>x.id===c.id);return p?'<img src="'+p.portrait+'" alt="" style="width:66px;height:82px;object-fit:contain" onerror="this.style.display=\'none\'">':'<span style="font-size:34px">'+c.icon+'</span>'};
+  return head("パーティ編成","召喚した仲間を最大4人まで編成できます。変更は自動保存されます。")+
+  '<section class="card"><h2>出撃メンバー（'+state.party.length+'/4）</h2><div class="party-slot-grid">'+slots.map((c,i)=>'<div class="party-slot"><small>SLOT '+(i+1)+'</small>'+(c?portrait(c)+'<b>'+c.name+'</b><small>HP '+c.maxHp+' / ATK '+c.atk+'</small><button class="choice" data-action="party-remove" data-id="'+c.id+'">外す</button>':'<span class="party-empty">＋ 空き枠</span>')+'</div>').join('')+'</div><p class="muted">出撃メンバーは最低1人必要です。編成変更時は進行中の戦闘が最初からになります。</p></section>'+
+  '<section class="card" style="margin-top:14px"><h2>所持キャラクター</h2><div class="party-roster">'+roster.map(c=>{const selected=state.party.includes(c.id);return '<article class="party-roster-card">'+portrait(c)+'<div><b>'+c.name+' <span class="pill">★'+c.rarity+'</span></b><p class="muted">'+c.role+' / HP '+c.maxHp+' / ATK '+c.atk+' / SPD '+c.spd+'</p></div><button class="btn" data-action="'+(selected?'party-remove':'party-add')+'" data-id="'+c.id+'" '+(!selected&&state.party.length>=4?'disabled':'')+'>'+(selected?'編成解除':'編成する')+'</button></article>'}).join('')+'</div></section>';
+}
+function battle(){
   const enemy=state.enemy;
   const members=state.party.map(char).filter(Boolean);
   const pct=(v,m)=>Math.max(0,Math.min(100,v/m*100));
@@ -400,6 +437,7 @@ function summon(count){
     if(item.rarity===5&&isNew) state.summonedCharacters.push(item.id);
     got.push({...item,isNew});
   }
+  syncOwnedBattleCharacters();
   state.achievements.firstSummon=true;
   addLog("召喚："+got.map(x=>x.name+"（★"+x.rarity+"）").join("、"));
   render();
@@ -413,6 +451,8 @@ document.addEventListener("click",e=>{const v=e.target.closest("[data-view]");if
 if(a==="go-battle")setView("battle");
 if(a==="shuffle-scene"){const options=continentScenes.filter(s=>s.id!==currentScene.id);currentScene=options[Math.floor(Math.random()*options.length)];render();toast(`${currentScene.name}の風景に切り替えたで`)}
 if(["attack","skill","guard","heal"].includes(a))doBattleAction(a);
+if(a==="party-add")updateParty(b.dataset.id,true);
+if(a==="party-remove")updateParty(b.dataset.id,false);
 if(a==="reset-battle")resetBattle();if(a==="battle-back")backBattleInput()
 if(a==="summon")summon(1);if(a==="summon10")summon(10);                                      
 if(a==="buy-gems"){
