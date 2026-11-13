@@ -7,8 +7,9 @@ function eptaFormationSync(){
 eptaFormationSync();
 const eptaFormationOldSync=syncOwnedBattleCharacters;
 syncOwnedBattleCharacters=function(){
+ const previous=[...state.party];
  eptaFormationOldSync();
- // Old sync restricts to four; retain the previous six-slot arrangement.
+ state.party=[...new Set([...previous,...state.party])].filter(id=>!!char(id)&&(!protagonistPool.some(p=>p.id===id)||state.summonedCharacters.includes(id))).slice(0,6);
  eptaFormationSync();
 };
 const eptaFormationOldParty=party;
